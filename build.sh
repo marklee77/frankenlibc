@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 
 MAKE=${MAKE-make}
 
@@ -322,7 +322,7 @@ rm -f ${RUMP}/lib/librumpdev_opencrypto.a
 rm -f ${RUMP}/lib/librumpdev_cgd.a
 
 # userspace libraries to build from NetBSD base
-USER_LIBS="m pthread z crypt util prop rmt ipsec"
+USER_LIBS="m pthread crypt util"
 NETBSDLIBS="${RUMPSRC}/lib/libc"
 for f in ${USER_LIBS}
 do
@@ -332,11 +332,26 @@ done
 RUMPMAKE=${RUMPOBJ}/tooldir/rumpmake
 
 usermtree ${RUMP}
-userincludes ${RUMPSRC} ${NETBSDLIBS}
+userincludes ${RUMPSRC}
 
-for lib in ${NETBSDLIBS}; do
-        makeuserlib ${lib}
-done
+(
+	cd libtc
+	${RUMPMAKE}
+	cp libfranken_tc.a ${RUMP}/lib/
+	${RUMPMAKE} clean
+)
+
+#for lib in ${NETBSDLIBS}; do
+#        echo "MARK: ${lib}"
+#        makeuserlib ${lib}
+#done
+
+(
+    cd musl
+    ./configure --prefix=${RUMPOBJ}/tooldir/dest/usr --disable-shared
+    make
+    make install
+)
 
 # permissions set wrong
 chmod -R ug+rw ${RUMP}/include/*
@@ -382,19 +397,12 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
 	RUMP="${RUMP}" \
 	${MAKE} ${STDJ} -C librumpuser
 
-CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
-	LDFLAGS="${EXTRA_LDFLAGS}" \
-	CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
-	RUMPOBJ="${RUMPOBJ}" \
-	RUMP="${RUMP}" \
-	${MAKE} ${STDJ} -C libvirtif
-
-(
-	cd libtc
-	${RUMPMAKE}
-	cp libfranken_tc.a ${RUMP}/lib/
-	${RUMPMAKE} clean
-)
+#CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
+#	LDFLAGS="${EXTRA_LDFLAGS}" \
+#	CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
+#	RUMPOBJ="${RUMPOBJ}" \
+#	RUMP="${RUMP}" \
+#	${MAKE} ${STDJ} -C libvirtif
 
 # find which libs we should link
 ALL_LIBS="${RUMP}/lib/librump.a
@@ -405,9 +413,17 @@ ALL_LIBS="${RUMP}/lib/librump.a
 	${RUMP}/lib/librumpvfs*.a
 	${RUMP}/lib/librumpkern*.a"
 
+ALL_LIBS="${RUMP}/lib/librump.a
+	${RUMP}/lib/librumpdev*.a
+	${RUMP}/lib/librumpnet*.a
+	${RUMP}/lib/librumpfs*.a
+	${RUMP}/lib/librumpvfs*.a
+	${RUMP}/lib/librumpkern*.a"
+
 if [ ! -z ${LIBS+x} ]
 then
 	ALL_LIBS="${RUMP}/lib/librump.a ${RUMP}/lib/libfranken_tc.a"
+	ALL_LIBS="${RUMP}/lib/librump.a"
 	for l in $(echo ${LIBS} | tr "," " ")
 	do
 		case ${l} in
@@ -562,15 +578,15 @@ then
 fi
 
 # install some useful applications
-if [ ${MAKETOOLS} = "yes" ]
-then
-	CC="${BINDIR}/${COMPILER}" \
-	RUMPSRC=${RUMPSRC} \
-	RUMPOBJ=${RUMPOBJ} \
-	OUTDIR=${OUTDIR} \
-	BINDIR=${BINDIR} \
-		${MAKE} ${STDJ} -C utilities
-fi
+#if [ ${MAKETOOLS} = "yes" ]
+#then
+#	CC="${BINDIR}/${COMPILER}" \
+#	RUMPSRC=${RUMPSRC} \
+#	RUMPOBJ=${RUMPOBJ} \
+#	OUTDIR=${OUTDIR} \
+#	BINDIR=${BINDIR} \
+#		${MAKE} ${STDJ} -C utilities
+#fi
 
 # Always make tests to exercise compiler
 CC="${BINDIR}/${COMPILER}" \
