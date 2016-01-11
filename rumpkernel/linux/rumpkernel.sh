@@ -25,7 +25,7 @@ rumpkernel_createuserlib()
 (
 	set -x
 	echo "=== building musl ==="
-	cd musl
+	cd ../musl
 	LKL_HEADER="${RUMP}/lkl-linux/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
