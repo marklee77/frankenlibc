@@ -8,7 +8,7 @@ RUMPSRC=${PWD}/src
 LKLSRC=${PWD}/../lkl-linux
 OUTDIR=${PWD}/rump
 NCPU=1
-RUMP_KERNEL=netbsd
+RUMP_KERNEL=linux
 
 EXTRA_AFLAGS="-Wa,--noexecstack"
 
