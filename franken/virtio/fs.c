@@ -4,89 +4,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-/* XXX: temporary solution */
-#define __user
-#define S_IRWXO 00007
-typedef unsigned short		umode_t;
-
-long lkl_syscall(long no, long *params);
-#define __LKL__MAP0(m,...)
-#define __LKL__MAP1(m,t,a) m(t,a)
-#define __LKL__MAP2(m,t,a,...) m(t,a), __LKL__MAP1(m,__VA_ARGS__)
-#define __LKL__MAP3(m,t,a,...) m(t,a), __LKL__MAP2(m,__VA_ARGS__)
-#define __LKL__MAP4(m,t,a,...) m(t,a), __LKL__MAP3(m,__VA_ARGS__)
-#define __LKL__MAP5(m,t,a,...) m(t,a), __LKL__MAP4(m,__VA_ARGS__)
-#define __LKL__MAP6(m,t,a,...) m(t,a), __LKL__MAP5(m,__VA_ARGS__)
-#define __LKL__MAP(n,...) __LKL__MAP##n(__VA_ARGS__)
-
-#define __LKL__SC_LONG(t, a) (long)a
-#define __LKL__SC_DECL(t, a) t a
-
-#define LKL_SYSCALL0(name)					       \
-	static __inline__ long lkl_sys##name(void)			       \
-	{							       \
-		long params[6];					       \
-		return lkl_syscall(__lkl__NR##name, params);	       \
-	}
-
-#define LKL_SYSCALLx(x, name, ...)				       \
-       	static __inline__						       \
-	long lkl_sys##name(__LKL__MAP(x, __LKL__SC_DECL, __VA_ARGS__))	       \
-	{							       \
-		long params[6] = { __LKL__MAP(x, __LKL__SC_LONG, __VA_ARGS__) }; \
-		return lkl_syscall(__lkl__NR##name, params);	       \
-	}
-
-#define LKL_SYSCALL_DEFINE0(name, ...) LKL_SYSCALL0(name)
-#define LKL_SYSCALL_DEFINE1(name, ...) LKL_SYSCALLx(1, name, __VA_ARGS__)
-#define LKL_SYSCALL_DEFINE2(name, ...) LKL_SYSCALLx(2, name, __VA_ARGS__)
-#define LKL_SYSCALL_DEFINE3(name, ...) LKL_SYSCALLx(3, name, __VA_ARGS__)
-#define LKL_SYSCALL_DEFINE4(name, ...) LKL_SYSCALLx(4, name, __VA_ARGS__)
-#define LKL_SYSCALL_DEFINE5(name, ...) LKL_SYSCALLx(5, name, __VA_ARGS__)
-#define LKL_SYSCALL_DEFINE6(name, ...) LKL_SYSCALLx(6, name, __VA_ARGS__)
-
-#define __lkl__NR_mkdir 1030
-#ifdef __lkl__NR_mkdir
-LKL_SYSCALL_DEFINE2(_mkdir,const char *,pathname,umode_t,mode)
-#endif
-#define __lkl__NR_rmdir 1031
-#ifdef __lkl__NR_rmdir
-LKL_SYSCALL_DEFINE1(_rmdir,const char *,pathname)
-#endif
-#define __lkl__NR_open 1024
-#ifdef __lkl__NR_open
-LKL_SYSCALL_DEFINE3(_open,const char *,filename,int,flags,umode_t,mode)
-#endif
-#define __lkl__NR_close 57
-#ifdef __lkl__NR_close
-LKL_SYSCALL_DEFINE1(_close,unsigned int,fd)
-#endif
-#define __lkl__NR_unlink 1026
-#ifdef __lkl__NR_unlink
-LKL_SYSCALL_DEFINE1(_unlink,const char *,pathname)
-#endif
-#define __lkl__NR_access 1033
-#ifdef __lkl__NR_access
-LKL_SYSCALL_DEFINE2(_access,const char *,filename,int,mode)
-#endif
-#define __lkl__NR_mount 40
-#ifdef __lkl__NR_mount
-LKL_SYSCALL_DEFINE5(_mount,char *,dev_name,char *,dir_name,char *,type,unsigned long,flags,void *,data)
-#endif
-#define __lkl__NR_umount 1076
-#ifdef __lkl__NR_umount
-LKL_SYSCALL_DEFINE2(_umount,char *,name,int,flags)
-#endif
-#define __lkl__NR_mknod 1027
-#ifdef __lkl__NR_mknod
-LKL_SYSCALL_DEFINE3(_mknod,const char *,filename,umode_t,mode,unsigned,dev)
-#endif
-#define __lkl__NR_read 63
-#ifdef __lkl__NR_read
-LKL_SYSCALL_DEFINE3(_read,unsigned int,fd,char *,buf,size_t,count)
-#endif
-
-#define LKL_MKDEV(ma,mi)	((ma)<<8 | (mi))
+#include <lkl/linux/stat.h>
+#include <lkl/asm/syscalls.h>
 
 long lkl_mount_sysfs(void)
 {
@@ -163,7 +82,7 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 	snprintf(dev_str, sizeof(dev_str), "/dev/%08x", dev);
 //	snprintf(mnt_str, mnt_str_len, "/mnt/%08x", dev);
 
-	err = lkl_sys_access("/dev", S_IRWXO);
+	err = lkl_sys_access("/dev", LKL_S_IRWXO);
 	if (err < 0) {
 		if (err == -ENOENT)
 			err = lkl_sys_mkdir("/dev", 0700);
@@ -175,7 +94,7 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 	if (err < 0)
 		return err;
 
-	err = lkl_sys_access(mnt_str, S_IRWXO);
+	err = lkl_sys_access(mnt_str, LKL_S_IRWXO);
 	if (err < 0) {
 		if (err == -ENOENT)
 			err = lkl_sys_mkdir(mnt_str, 0700);

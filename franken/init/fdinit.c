@@ -10,15 +10,10 @@
 
 #include "init.h"
 
+#include <lkl.h>
+#include <lkl/asm/syscalls.h>
+
 static int disk_id;
-union lkl_disk {
-	int fd;
-	void *handle;
-};
-long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
-		   void *data, char *mnt_str, unsigned int mnt_str_len);
-int lkl_disk_add(union lkl_disk disk);
-long lkl_umount_dev(char *mnt_str, int flags);
 
 static int nd_id;
 union lkl_netdev {
@@ -111,7 +106,7 @@ __franken_fdinit()
 			__franken_fd[fd].seek = 1;
 #ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
-			union lkl_disk disk;
+			union lkl_disk_backstore disk;
 			disk.fd = fd;
 			disk_id = lkl_disk_add(disk);
 #endif
@@ -226,7 +221,7 @@ unmount_atexit(void)
 	int ret __attribute__((__unused__));
 
 #ifdef MUSL_LIBC
-	ret = lkl_umount_dev("/etc", 0);
+	ret = lkl_sys_umount("/etc", 0);
 #else
 	ret = rump___sysimpl_unmount("/", MNT_FORCE);
 #endif
