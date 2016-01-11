@@ -4,7 +4,6 @@ RUMPOBJ?=../../rumpobj
 OBJDIR=$(RUMPOBJ)/franken
 OBJ=$(OBJDIR)/virtio.o
 OBJ+=$(OBJDIR)/virtio_blk.o
-OBJ+=$(OBJDIR)/fs.o
 OBJ+=$(OBJDIR)/virtio_net.o
 RUMP?=$(RUMPOBJ)/rump
 INCLUDES=-I../include -I../../platform/include -I. -I$(RUMP)/include -I../../librumpuser/
@@ -27,10 +26,6 @@ $(OBJDIR)/virtio.o:		virtio.c $(DEPS)
 $(OBJDIR)/virtio_blk.o:		virtio_blk.c $(DEPS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ virtio_blk.c
-
-$(OBJDIR)/fs.o:			fs.c $(DEPS)
-				@mkdir -p $(OBJDIR)
-				$(COMPILE.c) -o $@ fs.c
 
 $(OBJDIR)/virtio_net.o:		virtio_net.c $(DEPS)
 				@mkdir -p $(OBJDIR)
