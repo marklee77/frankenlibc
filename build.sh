@@ -288,6 +288,10 @@ FRANKEN_CFLAGS="-std=c99 -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter
 
 if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
 
+if [ "${RUMP_KERNEL}" = "linux" ]; then
+    appendvar FRANKEN_CFLAGS "-I${LKLSRC}/tools/lkl/include"
+fi
+
 CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
         LDFLAGS="${EXTRA_LDFLAGS}" \
@@ -368,6 +372,7 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	ASFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
 	LDFLAGS="${EXTRA_LDFLAGS}" \
 	CPPFLAGS="${EXTRA_CPPFLAGS} ${FRANKEN_FLAGS}" \
+    LKLSRC="${LKLSRC}" \
 	RUMPOBJ="${RUMPOBJ}" \
 	RUMP="${RUMP}" \
 	${MAKE} ${STDJ} -C franken
