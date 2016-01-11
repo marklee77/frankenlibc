@@ -9,8 +9,8 @@
 #include "thread.h"
 #include "init.h"
 
-#include "../../lkl-linux/include/linux/virtio_mmio.h"
-#include "../../lkl-linux/include/uapi/linux/virtio_net.h"
+#include "../../../lkl-linux/include/linux/virtio_mmio.h"
+#include "../../../lkl-linux/include/uapi/linux/virtio_net.h"
 
 #define BIT(x) (1<<x)
 
