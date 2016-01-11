@@ -10,8 +10,8 @@
 #include "virtio.h"
 #include "endian.h"
 
-#include "../../../include/linux/virtio_mmio.h"
-#include "../../../lkl-linux/include/uapi/linux/virtio_blk.h"
+#include <linux/virtio_mmio.h>
+#include <uapi/linux/virtio_blk.h>
 
 /* FIXME: should be somewhere else */
 #define LKL_DEV_BLK_TYPE_READ		0
