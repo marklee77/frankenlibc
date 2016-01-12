@@ -159,15 +159,6 @@ struct ufs_args {
 	char *fspec;
 };
 
-struct tmpfs_args {
-	int ta_version;
-	ino_t ta_nodes_max;
-	off_t ta_size_max;
-	uid_t ta_root_uid;
-	gid_t ta_root_gid;
-	mode_t ta_root_mode;
-};
-
 #define MNT_RDONLY	0x00000001
 #define MNT_LOG		0x02000000
 #define MNT_FORCE	0x00080000
@@ -200,19 +191,8 @@ int rump___sysimpl_ioctl(int, unsigned long, void *);
 static void
 mount_tmpfs(void)
 {
-	struct tmpfs_args ta = {
-		.ta_version = 1,
-		.ta_nodes_max = 0,
-		.ta_size_max = 0,
-		.ta_root_uid = 0,
-		.ta_root_gid = 0,
-		.ta_root_mode = 0777,
-	};
-
-	/* try to mount tmpfs if possible, useful for ro root fs */
-	rump___sysimpl_mkdir("/tmp", 0777);
-	/* might fail if no /tmp directory, or tmpfs not included in system */
-	rump___sysimpl_mount50("tmpfs", "/tmp", 0, &ta, sizeof(struct tmpfs_args));
+    lkl_sys_mkdir("/tmp", 0777);
+    lkl_sys_mount("tmpfs", "/tmp", "tmpfs", 0, "mode=0777");
 }
 
 static void
@@ -300,45 +280,22 @@ register_net(int fd)
 static int
 register_block(int dev, int fd, int flags, off_t size, int root)
 {
-#ifdef MUSL_LIBC
-	/* FIXME: hehe always fixme tagged.. */
 	int ret;
-	char mnt_point[32] = "/etc";
+	char mnt_point[32];
 
 	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
 			    sizeof(mnt_point));
-	if (ret < 0)
+	if (ret < 0) {
 		printf("can't mount disk (%d) at %s. err=%d\n",
 			disk_id, mnt_point, ret);
+    } else if (root) {
+        lkl_sys_chroot(mnt_point);
+        lkl_sys_mkdir("/dev", 0755);
+        lkl_sys_mknod("/dev/null", 0644, LKL_MKDEV(1, 3));
+    }
 
 	atexit(unmount_atexit);
 	return ret;
-#else
-	char key[16], rkey[16], num[16];
-	struct ufs_args ufs;
-	int ret;
-
-	mkkey(key, num, "/dev/block", dev, fd);
-	mkkey(rkey, num, "/dev/rblock", dev, fd);
-	rump_pub_etfs_register_withsize(key, num, RUMP_ETFS_BLK, 0, size);
-	rump_pub_etfs_register_withsize(rkey, num, RUMP_ETFS_CHR, 0, size);
-	if (root == 0)
-		return 0;
-	ufs.fspec = key;
-	if (flags == O_RDWR)
-		flags = MNT_LOG;
-	else
-		flags = MNT_RDONLY;
-	ret = rump___sysimpl_mount50("ffs", "/", flags, &ufs, sizeof(struct ufs_args));
-	if (ret == -1) {
-		if (flags == MNT_LOG)
-			flags = 0;
-		ret = rump___sysimpl_mount50("ext2fs", "/", flags, &ufs, sizeof(struct ufs_args));
-	}
-	if (ret == 0)
-		atexit(unmount_atexit);
-	return ret;
-#endif
 }
 
 void
