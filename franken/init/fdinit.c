@@ -32,24 +32,6 @@ enum rump_etfs_type {
 };
 
 int rump_pub_etfs_register(const char *, const char *, enum rump_etfs_type);
-int rump_pub_etfs_register_withsize(const char *, const char *, enum rump_etfs_type, uint64_t, uint64_t);
-int rump_pub_etfs_remove(const char *);
-
-int rump_pub_netconfig_ifcreate(const char *) __attribute__ ((weak));
-int rump_pub_netconfig_dhcp_ipv4_oneshot(const char *) __attribute__ ((weak));
-int rump_pub_netconfig_auto_ipv6(const char *) __attribute__ ((weak));
-int rump_pub_netconfig_ifup(const char *) __attribute__ ((weak));
-int rump_pub_netconfig_ipv4_ifaddr(const char *, const char *, const char *) __attribute__ ((weak));
-int rump_pub_netconfig_ipv4_ifaddr_cidr(const char *, const char *, int) __attribute__ ((weak));
-int rump_pub_netconfig_ipv4_gw(const char *) __attribute__ ((weak));
-
-int rump_pub_netconfig_ifcreate(const char *interface) {return 0;}
-int rump_pub_netconfig_dhcp_ipv4_oneshot(const char *interface) {return 0;}
-int rump_pub_netconfig_auto_ipv6(const char *interface) {return 0;}
-int rump_pub_netconfig_ifup(const char *interface) {return 0;}
-int rump_pub_netconfig_ipv4_ifaddr(const char *interface, const char *addr, const char *mask) {return 0;}
-int rump_pub_netconfig_ipv4_ifaddr_cidr(const char *interface, const char *addr, int mask) {return 0;};
-int rump_pub_netconfig_ipv4_gw(const char *interface) {return 0;}
 
 struct __fdtable __franken_fd[MAXFD];
 
@@ -104,12 +86,10 @@ __franken_fdinit()
 			break;
 		case S_IFBLK:
 			__franken_fd[fd].seek = 1;
-#ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
 			union lkl_disk_backstore disk;
 			disk.fd = fd;
 			disk_id = lkl_disk_add(disk);
-#endif
 			break;
 		case S_IFCHR:
 			/* XXX Linux presents stdin as char device see notes to clean up */
@@ -120,12 +100,10 @@ __franken_fdinit()
 			break;
 		case S_IFSOCK:
 			__franken_fd[fd].seek = 0;
-#ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
 			union lkl_netdev nd;
 			nd.fd = fd;
 			nd_id = lkl_netdev_add(nd, NULL);
-#endif
 			break;
 		}
 	}
@@ -199,12 +177,7 @@ static void
 unmount_atexit(void)
 {
 	int ret __attribute__((__unused__));
-
-#ifdef MUSL_LIBC
 	ret = lkl_sys_umount("/etc", 0);
-#else
-	ret = rump___sysimpl_unmount("/", MNT_FORCE);
-#endif
 }
 
 static int
@@ -220,16 +193,11 @@ register_reg(int dev, int fd, int flags)
 static void
 register_net(int fd)
 {
-#ifdef MUSL_LIBC
 	/* FIXME: hehe always fixme tagged.. */
 	lkl_if_up(lkl_netdev_get_ifindex(nd_id));
 	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0200010a /* 10.1.0.2 */,
 			24);
 #if 0
-	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0cd1a8c0 /* 192.168.209.12 */,
-			24);
-#endif
-#else
 	char key[16], num[16];
 	int ret;
 	int sock;
