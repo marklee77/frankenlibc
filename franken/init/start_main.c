@@ -70,28 +70,15 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	/* start a new rump process */
 	rump_pub_lwproc_rfork(0);
 
-#ifndef MUSL_LIBC
-	/* init NetBSD libc */
-	_libc_init();
-
-
-	_init();
-	a = (uintptr_t)&__init_array_start;
-	for (; a < (uintptr_t)&__init_array_end; a += sizeof(void(*)()))
-		(*(void (**)())a)();
-#else
 	__init_libc(envp, argv[0]);
 	__libc_start_init();
-#endif
 
 	/* see if we have any devices to init */
 	__franken_fdinit_create();
 
 	/* XXX may need to have a rump kernel specific hook */
-#ifdef MUSL_LIBC
 	int lkl_if_up(int ifindex);
 	lkl_if_up(1);
-#endif
 
 	atexit(finifn);
 
