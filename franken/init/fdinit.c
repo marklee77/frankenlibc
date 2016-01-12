@@ -109,62 +109,9 @@ __franken_fdinit()
 	}
 }
 
-/* XXX would be much nicer to build these functions against NetBSD libc headers, but at present
-   they are not built, or installed, yet. Need to reorder the build process */
-
-#define IOCPARM_MASK    0x1fff
-#define IOCPARM_SHIFT   16
-#define IOCGROUP_SHIFT  8
-#define IOCPARM_LEN(x)  (((x) >> IOCPARM_SHIFT) & IOCPARM_MASK)
-#define IOCBASECMD(x)   ((x) & ~(IOCPARM_MASK << IOCPARM_SHIFT))
-#define IOCGROUP(x)     (((x) >> IOCGROUP_SHIFT) & 0xff)
-
-#define IOC_VOID        (unsigned long)0x20000000
-#define IOC_OUT         (unsigned long)0x40000000
-#define IOC_IN          (unsigned long)0x80000000
-#define IOC_INOUT       (IOC_IN|IOC_OUT)
-#define IOC_DIRMASK     (unsigned long)0xe0000000
-
-#define _IOC(inout, group, num, len) \
-    ((inout) | (((len) & IOCPARM_MASK) << IOCPARM_SHIFT) | \
-    ((group) << IOCGROUP_SHIFT) | (num))
-#define _IO(g,n)        _IOC(IOC_VOID,  (g), (n), 0)
-#define _IOR(g,n,t)     _IOC(IOC_OUT,   (g), (n), sizeof(t))
-#define _IOW(g,n,t)     _IOC(IOC_IN,    (g), (n), sizeof(t))
-#define _IOWR(g,n,t)    _IOC(IOC_INOUT, (g), (n), sizeof(t))
-
-struct ufs_args {
-	char *fspec;
-};
-
-#define MNT_RDONLY	0x00000001
-#define MNT_LOG		0x02000000
-#define MNT_FORCE	0x00080000
-
-#define IFNAMSIZ 16
-
-struct ifcapreq {
-	char		ifcr_name[IFNAMSIZ];
-	uint64_t	ifcr_capabilities;
-	uint64_t	ifcr_capenable;
-};
-
-#define SIOCGIFCAP	_IOWR('i', 118, struct ifcapreq)
-#define SIOCSIFCAP	_IOW('i', 117, struct ifcapreq)
-
 int rump___sysimpl_open(const char *, int, ...);
-int rump___sysimpl_close(int);
 int rump___sysimpl_dup2(int, int);
-int rump___sysimpl_mount50(const char *, const char *, int, void *, size_t);
-int rump___sysimpl_unmount(const char *, int);
-int rump___sysimpl_socket30(int, int, int);
-int rump___sysimpl_mkdir(const char *, mode_t);
-int rump___sysimpl_ioctl(int, unsigned long, void *);
-
-#define AF_UNSPEC 0
-#define AF_INET 2
-#define AF_INET6 24
-#define SOCK_STREAM 1
+int rump___sysimpl_close(int);
 
 static void
 mount_tmpfs(void)
