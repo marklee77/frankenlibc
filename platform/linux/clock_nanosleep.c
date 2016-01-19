@@ -7,14 +7,9 @@
 #include "init.h"
 #include "thread.h"
 
-#include <lkl.h>
-#include <lkl/asm/syscalls.h>
-
 /* XXX tidy up */
 extern int __platform_npoll;
 extern struct pollfd __platform_pollfd[MAXFD];
-
-int rumpns_printk(const char *fmt, ...);
 
 int clock_nanosleep(clockid_t clk_id, int flags, const struct timespec *request, struct timespec *remain)
 {
@@ -55,7 +50,6 @@ int clock_nanosleep(clockid_t clk_id, int flags, const struct timespec *request,
 
 	/* use poll instead as we might have network events */
 
-    rumpns_printk("frankenlibc nanosleep call ppoll\n");
 	ret = syscall(SYS_ppoll, __platform_pollfd, __platform_npoll, &ltp, NULL);
 	if (ret == -1) {
 		errno = EINVAL;

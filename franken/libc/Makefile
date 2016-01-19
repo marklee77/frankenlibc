@@ -13,7 +13,6 @@ OBJ+=$(OBJDIR)/strcpy.o $(OBJDIR)/strdup.o
 OBJ+=$(OBJDIR)/strlen.o $(OBJDIR)/strncmp.o
 OBJ+=$(OBJDIR)/strncpy.o
 OBJ+=$(OBJDIR)/vsnprintf.o
-OBJ+=$(OBJDIR)/rump.o
 
 INCLUDES=-I../include -I../../platform/include
 CPPFLAGS+=-nostdinc $(INCLUDES)
@@ -85,10 +84,6 @@ $(OBJDIR)/strncpy.o:		strncpy.c $(DEPS)
 $(OBJDIR)/vsnprintf.o:		vsnprintf.c $(DEPS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ vsnprintf.c
-
-$(OBJDIR)/rump.o:		rump.c $(DEPS)
-				@mkdir -p $(OBJDIR)
-				$(COMPILE.c) -o $@ rump.c
 
 .PHONY:				clean
 clean:		
