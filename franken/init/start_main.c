@@ -2,12 +2,7 @@
 
 #include "init.h"
 
-void rump_boot_setsigmodel(int);
 int rump_init(void);
-int rump_pub_lwproc_rfork(int);
-void rump_pub_lwproc_releaselwp(void);
-
-#define RUMP_SIGMODEL_IGNORE 1
 
 char **environ __attribute__((weak));
 
@@ -64,11 +59,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
 	__franken_fdinit();
 
-	rump_boot_setsigmodel(RUMP_SIGMODEL_IGNORE);
 	rump_init();
-
-	/* start a new rump process */
-	rump_pub_lwproc_rfork(0);
 
 	__init_libc(envp, argv[0]);
 	__libc_start_init();
