@@ -2,3 +2,4 @@
 /rumpobj/
 *.core
 ktrace.out
+tests/disk.img
