@@ -1,15 +1,14 @@
 #include <sys/mman.h>
-#include <errno.h>
-
 #include "syscall.h"
 
-int
-mprotect(void *addr, size_t length, int prot)
+#define PAGE_SIZE 4096
+
+int __mprotect(void *addr, size_t len, int prot)
 {
-	int ret = syscall(SYS_mprotect, addr, length, prot);
-
-	if (ret == -1)
-		errno = EINVAL;
-
-	return ret;
+	size_t start, end;
+	start = (size_t)addr & -PAGE_SIZE;
+	end = (size_t)((char *)addr + len + PAGE_SIZE-1) & -PAGE_SIZE;
+	return syscall(SYS_mprotect, start, end-start, prot);
 }
+
+weak_alias(__mprotect, mprotect);
