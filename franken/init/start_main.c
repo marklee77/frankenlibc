@@ -119,52 +119,6 @@ end:
 
 #define NSEC_PER_SEC 1000000000
 
-static void *rump_add_timer(__u64 ns, void (*func) (void *arg), void *arg)
-{
-	int ret;
-	struct thrdesc *td;
-
-	rumpuser_malloc(sizeof(*td), 0, (void **)&td);
-
-	memset(td, 0, sizeof(*td));
-	td->f = func;
-	td->arg = arg;
-	td->timeout = (struct timespec){ .tv_sec = ns / NSEC_PER_SEC,
-					 .tv_nsec = ns % NSEC_PER_SEC};
-
-	rumpuser_mutex_init(&td->mtx, RUMPUSER_MTX_SPIN);
-	rumpuser_cv_init(&td->cv);
-
-	ret = rumpuser_thread_create(rump_timer_trampoline, td, "timer",
-				     1, 0, -1, &td->thrid);
-	if (ret) {
-		rumpuser_free(td, 0);
-		return NULL;
-	}
-
-	return td;
-}
-
-static void rump_timer_cancel(void *timer) {
-	struct thrdesc *td = timer;
-
-	if (td->canceled)
-		return;
-
-	td->canceled = 1;
-	rumpuser_mutex_enter(td->mtx);
-	rumpuser_cv_signal(td->cv);
-	rumpuser_mutex_exit(td->mtx);
-
-	rumpuser_mutex_destroy(td->mtx);
-	rumpuser_cv_destroy(td->cv);
-
-	if (td->thrid)
-		rumpuser_thread_join(td->thrid);
-
-	rumpuser_free(td, 0);
-}
-
 static void print(const char *str, int len) {
 	int ret __attribute__((unused));
 
@@ -249,11 +203,48 @@ static void *timer_alloc(void (*fn)(void *), void *arg) {
 
 static int timer_set_oneshot(void *timer, unsigned long ns)
 {
-    return rump_add_timer(ns, (void (*)(void *))timer, NULL) ? 0 : -1;
+	int ret;
+	struct thrdesc *td;
+
+	rumpuser_malloc(sizeof(*td), 0, (void **)&td);
+
+	memset(td, 0, sizeof(*td));
+	td->f = (void (*)(void))timer;
+	td->arg = NULL;
+	td->timeout = (struct timespec){ .tv_sec = ns / NSEC_PER_SEC,
+					 .tv_nsec = ns % NSEC_PER_SEC};
+
+	rumpuser_mutex_init(&td->mtx, RUMPUSER_MTX_SPIN);
+	rumpuser_cv_init(&td->cv);
+
+	ret = rumpuser_thread_create(rump_timer_trampoline, td, "timer",
+				     1, 0, -1, &td->thrid);
+	if (ret) {
+		rumpuser_free(td, 0);
+		return NULL;
+	}
+
+	return td ? 0 : -1;
 } 
 
 static void timer_free(void *timer) {
-    rump_timer_cancel(timer);
+	struct thrdesc *td = timer;
+
+	if (td->canceled)
+		return;
+
+	td->canceled = 1;
+	rumpuser_mutex_enter(td->mtx);
+	rumpuser_cv_signal(td->cv);
+	rumpuser_mutex_exit(td->mtx);
+
+	rumpuser_mutex_destroy(td->mtx);
+	rumpuser_cv_destroy(td->cv);
+
+	if (td->thrid)
+		rumpuser_thread_join(td->thrid);
+
+	rumpuser_free(td, 0);
 }
 
 static void panic(void)
