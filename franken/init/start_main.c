@@ -145,6 +145,25 @@ static void *rump_add_timer(__u64 ns, void (*func) (void *arg), void *arg)
 	return td;
 }
 
+static void rump_timer_cancel(void *timer) {
+	struct thrdesc *td = timer;
+
+	if (td->canceled)
+		return;
+
+	td->canceled = 1;
+	rumpuser_mutex_enter(td->mtx);
+	rumpuser_cv_signal(td->cv);
+	rumpuser_mutex_exit(td->mtx);
+
+	rumpuser_mutex_destroy(td->mtx);
+	rumpuser_cv_destroy(td->cv);
+
+	if (td->thrid)
+		rumpuser_thread_join(td->thrid);
+
+	rumpuser_free(td, 0);
+}
 
 static void print(const char *str, int len) {
 	int ret __attribute__((unused));
@@ -215,14 +234,32 @@ static void thread_exit(void)
     rumpuser_thread_exit();
 }
 
+static unsigned long long time(void) {
+    int64_t sec;
+    long nsec;
+    
+    rumpuser_clock_gettime(RUMPUSER_CLOCK_RELWALL, &sec, &nsec);
+
+    return ((unsigned long long)sec * NSEC_PER_SEC) + nsec;
+}
+
 static void *timer_alloc(void (*fn)(void *), void *arg) {
     return fn;
 }
 
-static int timer_set_oneshot(void *timer_fn, unsigned long ns)
+static int timer_set_oneshot(void *timer, unsigned long ns)
 {
-    return rump_add_timer(ns, (void (*)(void *))timer_fn, NULL) ? 0 : -1;
+    return rump_add_timer(ns, (void (*)(void *))timer, NULL) ? 0 : -1;
 } 
+
+static void timer_free(void *timer) {
+    rump_timer_cancel(timer);
+}
+
+static void panic(void)
+{
+    rumpuser_exit(RUMPUSER_PANIC);
+}
  
 char **environ __attribute__((weak));
 
@@ -290,6 +327,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	rumpuser_cv_init(&thrcv);
 	threads_are_go = 0;
 
+    lkl_host_ops.panic = panic;
     lkl_host_ops.print = print;
     lkl_host_ops.sem_alloc = sem_alloc;
     lkl_host_ops.sem_free = sem_free;
@@ -297,8 +335,10 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
     lkl_host_ops.sem_down = sem_down;
     lkl_host_ops.thread_create = thread_create;
     lkl_host_ops.thread_exit = thread_exit;
+    lkl_host_ops.time = time;
 	lkl_host_ops.timer_alloc = timer_alloc;
 	lkl_host_ops.timer_set_oneshot = timer_set_oneshot;
+    lkl_host_ops.timer_free = timer_free;
 
 	lkl_start_kernel(&lkl_host_ops, LKL_MEM_SIZE, boot_cmdline);
 
