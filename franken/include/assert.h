@@ -1,10 +1,6 @@
 #undef assert
 
-#ifdef NDEBUG
 #define	assert(e) (void)0
-#else
-#define assert(e) ((void)((e) || (__assert13(__FILE__, __LINE__, __assert_function__, #e),0)))
-#endif
 
 #if defined(__lint__)
 #define __assert_function__	(__static_cast(const void *,0))
