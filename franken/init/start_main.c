@@ -179,8 +179,7 @@ static void sem_down(void *_sem)
 
 static int thread_create(void (*fn)(void *), void *arg)
 {
-    void *thr;
-    return rumpuser_thread_create(fn, arg, "thread", 0, 1, -1, &thr);
+    return create_thread("thread", NULL, fn, arg, NULL, 0, 0) ? 0 : EINVAL;
 }
 
 static void thread_exit(void)
@@ -197,20 +196,20 @@ static unsigned long long time(void) {
     return ((unsigned long long)sec * NSEC_PER_SEC) + nsec;
 }
 
+// FIXME: timer functions don't seem right, but fixing them causes segfault...
 static void *timer_alloc(void (*fn)(void *), void *arg) {
     return fn;
 }
 
 static int timer_set_oneshot(void *timer, unsigned long ns)
 {
-	int ret;
 	struct thrdesc *td;
+	int ret;
 
 	rumpuser_malloc(sizeof(*td), 0, (void **)&td);
 
 	memset(td, 0, sizeof(*td));
-	td->f = (void (*)(void))timer;
-	td->arg = NULL;
+	td->f = (void (*)(void *))timer;
 	td->timeout = (struct timespec){ .tv_sec = ns / NSEC_PER_SEC,
 					 .tv_nsec = ns % NSEC_PER_SEC};
 
