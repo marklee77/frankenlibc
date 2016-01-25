@@ -38,7 +38,7 @@
 
 #include <rump/rumpuser.h>
 
-#define init_sched(h) __sched_init_sched(h)
+#define init_sched() __sched_init_sched()
 #define schedule __sched_schedule
 #define curlwp __sched_curlwp
 #define set_curlwp(l) __sched_set_curlwp(l)
@@ -76,7 +76,7 @@
 
 struct thread;
 
-void init_sched(const struct rumpuser_hyperup *);
+void init_sched();
 void schedule(void);
 void *curlwp(void);
 void set_curlwp(void *lwp);

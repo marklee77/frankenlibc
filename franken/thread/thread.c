@@ -80,22 +80,6 @@
 
 #include "thread.h"
 
-struct rumpuser_hyperup rumpuser__hyp;
-
-static inline void
-rumpkern_unsched(int *nlocks, void *interlock)
-{
-
-        rumpuser__hyp.hyp_backend_unschedule(0, nlocks, interlock);
-}
-
-static inline void
-rumpkern_sched(int nlocks, void *interlock)
-{
-
-        rumpuser__hyp.hyp_backend_schedule(nlocks, interlock);
-}
-
 struct thread {
 	char *name;
 	void *lwp;
@@ -417,7 +401,6 @@ clock_sleep(clockid_t clk, int64_t sec, long nsec)
 	int64_t msec;
 	int nlocks;
 
-	rumpkern_unsched(&nlocks, NULL);
 	switch (clk) {
 	case CLOCK_REALTIME:
 		msec = sec * 1000 + nsec / (1000*1000UL);
@@ -428,7 +411,6 @@ clock_sleep(clockid_t clk, int64_t sec, long nsec)
 		abssleep(msec);
 		break;
 	}
-	rumpkern_sched(nlocks, NULL);
 
 	return 0;
 }
@@ -471,14 +453,12 @@ clear_runnable(struct thread *thread)
 }
 
 void
-init_sched(const struct rumpuser_hyperup *hyp)
+init_sched()
 {
 	struct thread *thread = calloc(1, sizeof(struct thread));
 
 	if (! thread)
 		abort();
-
-	rumpuser__hyp = *hyp;
 
 	thread->name = strdup("init");
 	thread->flags = 0;
@@ -581,10 +561,8 @@ mutex_enter(struct rumpuser_mtx *mtx)
 	int nlocks;
 
 	if (mutex_tryenter(mtx) != 0) {
-		rumpkern_unsched(&nlocks, NULL);
 		while (mutex_tryenter(mtx) != 0)
 			wait(&mtx->waiters, WAIT_NOTIMEOUT);
-		rumpkern_sched(nlocks, NULL);
 	}
 }
 
@@ -676,10 +654,8 @@ rw_enter(int lk, struct rumpuser_rw *rw)
 	}
 
 	if (rw_tryenter(lk, rw) != 0) {
-		rumpkern_unsched(&nlocks, NULL);
 		while (rw_tryenter(lk, rw) != 0)
 			wait(w, WAIT_NOTIMEOUT);
-		rumpkern_sched(nlocks, NULL);
 	}
 }
 
@@ -801,7 +777,6 @@ static void
 cv_unsched(struct rumpuser_mtx *mtx, int *nlocks)
 {
 
-	rumpkern_unsched(nlocks, mtx);
 	mutex_exit(mtx);
 }
 
@@ -812,11 +787,9 @@ cv_resched(struct rumpuser_mtx *mtx, int nlocks)
 	/* see rumpuser(3) */
 	if ((mtx->flags & (MTX_KMUTEX | MTX_SPIN)) ==
 	    (MTX_KMUTEX | MTX_SPIN)) {
-		rumpkern_sched(nlocks, mtx);
 		mutex_enter_nowrap(mtx);
 	} else {
 		mutex_enter_nowrap(mtx);
-		rumpkern_sched(nlocks, mtx);
 	}
 }
 

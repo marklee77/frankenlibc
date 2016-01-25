@@ -10,54 +10,6 @@
 #include "thread.h"
 #include "rump/rumpuser.h"
 
-static void hyp_schedule(void) {}
-static void hyp_unschedule(void) {}
-
-static void hyp_backend_schedule(int nlocks, void *interlock) {}
-static void hyp_backend_unschedule(int nlocks, int *countp, void *interlock) {}
-
-static void hyp_lwproc_switch(struct lwp *newlwp) {}
-static void hyp_lwproc_release(void) {}
-static int hyp_lwproc_newlwp(pid_t pid) { return 0; }
-static struct lwp *hyp_lwproc_curlwp(void) { return NULL; }
-static int hyp_lwproc_rfork(void *priv, int flags, const char *comm) { return 0; }
-static void hyp_lwpexit(void) {}
-
-static pid_t hyp_getpid(void) { return 0; }
-static int hyp_syscall(int num, void *arg, long *retval) {
-    int ret = 0;
-
-#if 0
-    ret = lkl_syscall(num, (long *)arg);
-    if (ret < 0) {
-        retval[0] = -ret;
-        ret = -1;
-    } 
-#endif
-
-    return ret;
-}
-static void hyp_execnotify(const char *comm) {}
-
-static const struct rumpuser_hyperup hyp = {
-    .hyp_schedule = hyp_schedule,
-    .hyp_unschedule = hyp_unschedule,
-
-    .hyp_backend_schedule = hyp_backend_schedule,
-    .hyp_backend_unschedule = hyp_backend_unschedule,
-
-    .hyp_lwproc_switch = hyp_lwproc_switch,
-    .hyp_lwproc_release = hyp_lwproc_release,
-    .hyp_lwproc_newlwp = hyp_lwproc_newlwp,
-    .hyp_lwproc_curlwp = hyp_lwproc_curlwp,
-    .hyp_lwproc_rfork = hyp_lwproc_rfork,
-    .hyp_lwpexit = hyp_lwpexit,    
-
-    .hyp_getpid = hyp_getpid,
-    .hyp_syscall = hyp_syscall,
-    .hyp_execnotify = hyp_execnotify,
-};
-
 static int threads_are_go;
 static struct rumpuser_mtx *thrmtx;
 static struct rumpuser_cv *thrcv;
@@ -309,7 +261,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
 	__franken_fdinit();
 
-    init_sched(&hyp);
+    init_sched();
 
 	rumpuser_mutex_init(&thrmtx, RUMPUSER_MTX_SPIN);
 	rumpuser_cv_init(&thrcv);
