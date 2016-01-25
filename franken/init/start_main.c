@@ -203,6 +203,18 @@ static void sem_down(void *_sem)
 	sem->count--;
 	rumpuser_mutex_exit(sem->lock);
 }
+
+static int thread_create(void (*fn)(void *), void *arg)
+{
+    void *thr;
+    return rumpuser_thread_create(fn, arg, "thread", 0, 1, -1, &thr);
+}
+
+static void thread_exit(void)
+{
+    rumpuser_thread_exit();
+}
+
 static void *timer_alloc(void (*fn)(void *), void *arg) {
     return fn;
 }
@@ -283,6 +295,8 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
     lkl_host_ops.sem_free = sem_free;
     lkl_host_ops.sem_up = sem_up;
     lkl_host_ops.sem_down = sem_down;
+    lkl_host_ops.thread_create = thread_create;
+    lkl_host_ops.thread_exit = thread_exit;
 	lkl_host_ops.timer_alloc = timer_alloc;
 	lkl_host_ops.timer_set_oneshot = timer_set_oneshot;
 
