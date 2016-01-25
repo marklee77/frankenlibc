@@ -145,6 +145,13 @@ static void *rump_add_timer(__u64 ns, void (*func) (void *arg), void *arg)
 	return td;
 }
 
+
+static void print(const char *str, int len) {
+	int ret __attribute__((unused));
+
+	ret = write(1, str, len);
+}
+
 static void *timer_alloc(void (*fn)(void *), void *arg) {
     return fn;
 }
@@ -220,8 +227,10 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	rumpuser_cv_init(&thrcv);
 	threads_are_go = 0;
 
+    lkl_host_ops.print = print;
 	lkl_host_ops.timer_alloc = timer_alloc;
 	lkl_host_ops.timer_set_oneshot = timer_set_oneshot;
+
 	lkl_start_kernel(&lkl_host_ops, LKL_MEM_SIZE, boot_cmdline);
 
 	rumpuser_mutex_enter(thrmtx);
