@@ -152,6 +152,57 @@ static void print(const char *str, int len) {
 	ret = write(1, str, len);
 }
 
+struct rumpuser_sem {
+	struct rumpuser_mtx *lock;
+	int count;
+	struct rumpuser_cv *cond;
+};
+
+static void *sem_alloc(int count)
+{
+	struct rumpuser_sem *sem;
+
+	rumpuser_malloc(sizeof(*sem), 0, (void **)&sem);
+	if (!sem)
+		return NULL;
+
+	rumpuser_mutex_init(&sem->lock, RUMPUSER_MTX_SPIN);
+	sem->count = count;
+	rumpuser_cv_init(&sem->cond);
+
+	return sem;
+}
+
+static void sem_free(void *_sem)
+{
+	struct rumpuser_sem *sem = (struct rumpuser_sem *)_sem;
+
+	rumpuser_cv_destroy(sem->cond);
+	rumpuser_mutex_destroy(sem->lock);
+	rumpuser_free(sem, 0);
+}
+
+static void sem_up(void *_sem)
+{
+	struct rumpuser_sem *sem = (struct rumpuser_sem *)_sem;
+
+	rumpuser_mutex_enter(sem->lock);
+	sem->count++;
+	if (sem->count > 0)
+		rumpuser_cv_signal(sem->cond);
+	rumpuser_mutex_exit(sem->lock);
+}
+
+static void sem_down(void *_sem)
+{
+	struct rumpuser_sem *sem = (struct rumpuser_sem *)_sem;
+
+	rumpuser_mutex_enter(sem->lock);
+	while (sem->count <= 0)
+		rumpuser_cv_wait(sem->cond, sem->lock);
+	sem->count--;
+	rumpuser_mutex_exit(sem->lock);
+}
 static void *timer_alloc(void (*fn)(void *), void *arg) {
     return fn;
 }
@@ -228,6 +279,10 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	threads_are_go = 0;
 
     lkl_host_ops.print = print;
+    lkl_host_ops.sem_alloc = sem_alloc;
+    lkl_host_ops.sem_free = sem_free;
+    lkl_host_ops.sem_up = sem_up;
+    lkl_host_ops.sem_down = sem_down;
 	lkl_host_ops.timer_alloc = timer_alloc;
 	lkl_host_ops.timer_set_oneshot = timer_set_oneshot;
 
