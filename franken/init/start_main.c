@@ -309,9 +309,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
 	__franken_fdinit();
 
-    if (rumpuser_init(RUMPUSER_VERSION, &hyp) != 0) {
-        return EINVAL;
-    }
+    init_sched(&hyp);
 
 	rumpuser_mutex_init(&thrmtx, RUMPUSER_MTX_SPIN);
 	rumpuser_cv_init(&thrcv);
