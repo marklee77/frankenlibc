@@ -202,7 +202,7 @@ static void panic(void)
 {
     rumpuser_exit(RUMPUSER_PANIC);
 }
- 
+
 char **environ __attribute__((weak));
 
 static char empty_string[] = "";
