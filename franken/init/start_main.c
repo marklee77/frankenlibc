@@ -243,6 +243,27 @@ finifn()
 #define LKL_MEM_SIZE 100 * 1024 * 1024
 static char *boot_cmdline = "";    /* FIXME: maybe we have rump_set_boot_cmdline? */
 
+static void
+printk(const char *msg)
+{
+	int ret __attribute__((unused));
+
+	ret = write(2, msg, strlen(msg));
+}
+
+// this is needed because getenv does not work until after __init_libc
+static char *get_from_environ(const char *name) {
+    int i;
+    char *p;
+
+    for (i = 0; environ[i]; i++) {
+        if (!(p = strchr(environ[i], '='))) continue;
+        if (!strncmp(environ[i], name, p - environ[i])) return p+1;
+    }
+
+    return NULL;
+}
+
 int
 __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, char **envp)
 {
@@ -268,7 +289,6 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	threads_are_go = 0;
 
     lkl_host_ops.panic = panic;
-    lkl_host_ops.print = print;
     lkl_host_ops.sem_alloc = sem_alloc;
     lkl_host_ops.sem_free = sem_free;
     lkl_host_ops.sem_up = sem_up;
@@ -279,6 +299,11 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	lkl_host_ops.timer_alloc = timer_alloc;
 	lkl_host_ops.timer_set_oneshot = timer_set_oneshot;
     lkl_host_ops.timer_free = timer_free;
+
+    lkl_host_ops.print = NULL;
+    if (get_from_environ("FRANKEN_VERBOSE")) {
+        lkl_host_ops.print = print;
+    }
 
 	lkl_start_kernel(&lkl_host_ops, LKL_MEM_SIZE, boot_cmdline);
 
@@ -298,6 +323,9 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	lkl_if_up(1);
 
 	atexit(finifn);
+
+    /* make sure stdout is working even when VERBOSE is off */
+    lkl_host_ops.print = print;
 
 	exit(main(argc, argv, envp));
 	return 0;
