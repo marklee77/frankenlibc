@@ -18,6 +18,7 @@ OBJ+=$(OBJDIR)/fsync.o
 OBJ+=$(OBJDIR)/getpagesize.o
 OBJ+=$(OBJDIR)/getrandom.o
 OBJ+=$(OBJDIR)/kill.o
+OBJ+=$(OBJDIR)/lseek.o
 OBJ+=$(OBJDIR)/mmap.o
 OBJ+=$(OBJDIR)/mprotect.o
 OBJ+=$(OBJDIR)/munmap.o
@@ -106,6 +107,10 @@ $(OBJDIR)/getrandom.o:		getrandom.c $(HEADERS)
 $(OBJDIR)/kill.o:		kill.c $(HEADERS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ kill.c
+
+$(OBJDIR)/lseek.o:		lseek.c $(HEADERS)
+				@mkdir -p $(OBJDIR)
+				$(COMPILE.c) -o $@ lseek.c
 
 $(OBJDIR)/__libc_start_main.o:	__libc_start_main.c $(HEADERS)
 				@mkdir -p $(OBJDIR)

@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include <errno.h>
+#include <sys/uio.h>
 
 #include <lkl_host.h>
 #include <asm/syscalls.h>
@@ -203,6 +204,55 @@ static void panic(void)
     rumpuser_exit(RUMPUSER_PANIC);
 }
 
+static int fd_get_capacity(union lkl_disk_backstore bs, unsigned long long *res)
+{
+	off_t off;
+
+	off = lseek(bs.fd, 0, SEEK_END);
+	if (off < 0)
+		return -1;
+
+	*res = off;
+	return 0;
+}
+
+static void fd_do_rw(union lkl_disk_backstore bs, unsigned int type, unsigned int prio,
+	                 unsigned long long sector, struct lkl_dev_buf *bufs, int count)
+{
+	int err = 0;
+	struct iovec *iovec = (struct iovec *)bufs;
+
+	if (count > 1)
+		lkl_printf("%s: %d\n", __func__, count);
+
+	/* TODO: handle short reads/writes */
+	switch (type) {
+	case LKL_DEV_BLK_TYPE_READ:
+		err = preadv(bs.fd, iovec, count, sector * 512);
+		break;
+	case LKL_DEV_BLK_TYPE_WRITE:
+		err = pwritev(bs.fd, iovec, count, sector * 512);
+		break;
+	case LKL_DEV_BLK_TYPE_FLUSH:
+	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
+		err = fsync(bs.fd);
+		break;
+	default:
+		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_UNSUP, 0);
+		return;
+	}
+
+	if (err < 0)
+		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_IOERR, 0);
+	else
+		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_OK, err);
+}
+
+struct lkl_dev_blk_ops lkl_dev_blk_ops = {
+	.get_capacity = fd_get_capacity,
+	.request = fd_do_rw,
+};
+
 char **environ __attribute__((weak));
 
 static char empty_string[] = "";
@@ -300,6 +350,9 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	lkl_host_ops.timer_set_oneshot = timer_set_oneshot;
     lkl_host_ops.timer_free = timer_free;
 
+    lkl_dev_blk_ops.get_capacity = fd_get_capacity;
+    lkl_dev_blk_ops.request = fd_do_rw;
+    
     lkl_host_ops.print = NULL;
     if (get_from_environ("FRANKEN_VERBOSE")) {
         lkl_host_ops.print = print;
