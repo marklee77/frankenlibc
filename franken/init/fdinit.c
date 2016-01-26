@@ -65,7 +65,7 @@ __franken_fdinit()
 			/* notify virtio-mmio dev id */
 			union lkl_netdev nd;
 			nd.fd = fd;
-			nd_id = lkl_netdev_add(nd, NULL);
+			//nd_id = lkl_netdev_add(nd, NULL);
 			break;
 		}
 	}
@@ -89,9 +89,9 @@ static void
 register_net(int fd)
 {
 	/* FIXME: can we dynamically grab the real device address? */
-	lkl_if_up(lkl_netdev_get_ifindex(nd_id));
-	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0200010a /* 10.1.0.2 */,
-			24);
+	//lkl_if_up(lkl_netdev_get_ifindex(nd_id));
+	//lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0200010a /* 10.1.0.2 */,
+	//		24);
 }
 
 static int

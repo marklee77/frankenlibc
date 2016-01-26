@@ -429,7 +429,7 @@ fi
 # for Linux case
 if [ ${RUMP_KERNEL} != "netbsd" ]
 then
-	ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblinux.a
+	ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblkl.a
 fi
 
 # explode and implode
