@@ -64,9 +64,6 @@ rumpkernel_explode_libc()
 )
 	LIBC_DIR=musl
 
-	# XXX: need more appropriate place to do this
-	cp ${RUMPOBJ}/rumpkernel/netconfig.o ${RUMPOBJ}/explode/rumpkernel
-
 }
 
 rumpkernel_build_extra()

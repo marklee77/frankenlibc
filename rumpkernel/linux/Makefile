@@ -10,13 +10,7 @@ CFLAGS+=-g -I${INCDIR}
 
 DEPS= #$(LIBDIR)/libc.a
 
-OBJ=$(OBJDIR)/netconfig.o
-
 default:		$(OBJ)
-
-$(OBJDIR)/netconfig.o:		netconfig.c $(DEPS)
-				@mkdir -p $(OBJDIR)
-				${CC} ${CFLAGS} ${LDFLAGS} -c -o $@ netconfig.c
 
 .PHONY:				clean
 clean:		

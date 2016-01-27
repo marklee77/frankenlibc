@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
@@ -15,10 +16,7 @@
 
 static int disk_id;
 
-static int nd_id;
-union lkl_netdev {
-        int fd;
-};
+//static int nd_id;
 int lkl_netdev_add(union lkl_netdev nd, void *mac);
 int lkl_if_up(int ifindex);
 int lkl_netdev_get_ifindex(int id);
@@ -49,7 +47,7 @@ __franken_fdinit()
 		case S_IFBLK:
 			__franken_fd[fd].seek = 1;
 			/* notify virtio-mmio dev id */
-			union lkl_disk_backstore disk;
+			union lkl_disk disk;
 			disk.fd = fd;
 			disk_id = lkl_disk_add(disk);
 			break;
@@ -63,8 +61,8 @@ __franken_fdinit()
 		case S_IFSOCK:
 			__franken_fd[fd].seek = 0;
 			/* notify virtio-mmio dev id */
-			union lkl_netdev nd;
-			nd.fd = fd;
+			//union lkl_netdev nd;
+			//nd.fd = fd;
 			//nd_id = lkl_netdev_add(nd, NULL);
 			break;
 		}
@@ -119,7 +117,7 @@ void
 __franken_fdinit_create()
 {
 	int fd;
-	int n_reg = 0, n_block = 0;
+	int n_block = 0;
 
     /*
 	if (__franken_fd[0].valid) {

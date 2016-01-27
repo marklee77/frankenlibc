@@ -173,7 +173,7 @@ static int timer_set_oneshot(void *timer, unsigned long ns)
 				     1, 0, -1, &td->thrid);
 	if (ret) {
 		rumpuser_free(td, 0);
-		return NULL;
+		return -1;
 	}
 
 	return td ? 0 : -1;
@@ -204,11 +204,11 @@ static void panic(void)
     rumpuser_exit(RUMPUSER_PANIC);
 }
 
-static int fd_get_capacity(union lkl_disk_backstore bs, unsigned long long *res)
+static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
 {
 	off_t off;
 
-	off = lseek(bs.fd, 0, SEEK_END);
+	off = lseek(disk.fd, 0, SEEK_END);
 	if (off < 0)
 		return -1;
 
@@ -216,41 +216,36 @@ static int fd_get_capacity(union lkl_disk_backstore bs, unsigned long long *res)
 	return 0;
 }
 
-static void fd_do_rw(union lkl_disk_backstore bs, unsigned int type, unsigned int prio,
-	                 unsigned long long sector, struct lkl_dev_buf *bufs, int count)
+static int blk_request(union lkl_disk disk, struct lkl_blk_req *req)
 {
 	int err = 0;
-	struct iovec *iovec = (struct iovec *)bufs;
-
-	if (count > 1)
-		lkl_printf("%s: %d\n", __func__, count);
+	struct iovec *iovec = (struct iovec *)req->buf;
 
 	/* TODO: handle short reads/writes */
-	switch (type) {
+	switch (req->type) {
 	case LKL_DEV_BLK_TYPE_READ:
-		err = preadv(bs.fd, iovec, count, sector * 512);
+		err = preadv(disk.fd, iovec, req->count, req->sector * 512);
 		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
-		err = pwritev(bs.fd, iovec, count, sector * 512);
+		err = pwritev(disk.fd, iovec, req->count, req->sector * 512);
 		break;
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
-		err = fsync(bs.fd);
+		err = fsync(disk.fd);
 		break;
 	default:
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_UNSUP, 0);
-		return;
+		return LKL_DEV_BLK_STATUS_UNSUP;
 	}
 
 	if (err < 0)
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_IOERR, 0);
-	else
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_OK, err);
+		return LKL_DEV_BLK_STATUS_IOERR;
+
+	return LKL_DEV_BLK_STATUS_OK;
 }
 
 struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 	.get_capacity = fd_get_capacity,
-	.request = fd_do_rw,
+	.request = blk_request,
 };
 
 char **environ __attribute__((weak));
@@ -350,9 +345,6 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	lkl_host_ops.timer_set_oneshot = timer_set_oneshot;
     lkl_host_ops.timer_free = timer_free;
 
-    lkl_dev_blk_ops.get_capacity = fd_get_capacity;
-    lkl_dev_blk_ops.request = fd_do_rw;
-    
     lkl_host_ops.print = NULL;
     if (get_from_environ("FRANKEN_VERBOSE")) {
         lkl_host_ops.print = print;
