@@ -23,11 +23,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef LIBRUMPUSER
-#define LIBRUMPUSER
-#endif
-#include "rumpuser_port.h"
-
 #include <sys/queue.h>
 
 #include <stdint.h>
@@ -35,8 +30,6 @@
 #include <time.h>
 #include <ucontext.h>
 #include <unistd.h>
-
-#include <rump/rumpuser.h>
 
 #define init_sched() __sched_init_sched()
 #define schedule __sched_schedule

@@ -377,19 +377,12 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	RUMP="${RUMP}" \
 	${MAKE} ${STDJ} -C franken
 
-CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
-	LDFLAGS="${EXTRA_LDFLAGS}" \
-	CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
-	RUMPOBJ="${RUMPOBJ}" \
-	RUMP="${RUMP}" \
-	${MAKE} ${STDJ} -C librumpuser
-
-CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
-	LDFLAGS="${EXTRA_LDFLAGS}" \
-	CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
-	RUMPOBJ="${RUMPOBJ}" \
-	RUMP="${RUMP}" \
-	${MAKE} ${STDJ} -C libvirtif
+#CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
+#	LDFLAGS="${EXTRA_LDFLAGS}" \
+#	CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
+#	RUMPOBJ="${RUMPOBJ}" \
+#	RUMP="${RUMP}" \
+#	${MAKE} ${STDJ} -C libvirtif
 
 # build extra library
 rumpkernel_build_extra
@@ -437,7 +430,6 @@ rm -rf ${RUMPOBJ}/explode
 mkdir -p ${RUMPOBJ}/explode/libc
 mkdir -p ${RUMPOBJ}/explode/musl
 mkdir -p ${RUMPOBJ}/explode/rumpkernel
-mkdir -p ${RUMPOBJ}/explode/rumpuser
 mkdir -p ${RUMPOBJ}/explode/franken
 mkdir -p ${RUMPOBJ}/explode/platform
 (
@@ -467,11 +459,8 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	done
 	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o rumpkernel.o
 
-	cd ${RUMPOBJ}/explode/rumpuser
-	${AR-ar} x ${RUMP}/lib/librumpuser.a
-
 	cd ${RUMPOBJ}/explode
-	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
+	${AR-ar} cr libc.a rumpkernel/rumpkernel.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
 )
 
 # install to OUTDIR
