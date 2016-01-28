@@ -536,7 +536,7 @@ wakeup_all(struct waithead *wh)
 
 /* mtx */
 
-struct rumpuser_mtx {
+struct franken_mtx {
 	struct waithead waiters;
 	int v;
 	int flags;
@@ -544,9 +544,9 @@ struct rumpuser_mtx {
 };
 
 void
-mutex_init(struct rumpuser_mtx **mtxp, int flags)
+mutex_init(struct franken_mtx **mtxp, int flags)
 {
-	struct rumpuser_mtx *mtx;
+	struct franken_mtx *mtx;
 
 	mtx = calloc(1, sizeof(*mtx));
 	if (! mtx) abort();
@@ -556,7 +556,7 @@ mutex_init(struct rumpuser_mtx **mtxp, int flags)
 }
 
 void
-mutex_enter(struct rumpuser_mtx *mtx)
+mutex_enter(struct franken_mtx *mtx)
 {
 	int nlocks;
 
@@ -567,7 +567,7 @@ mutex_enter(struct rumpuser_mtx *mtx)
 }
 
 void
-mutex_enter_nowrap(struct rumpuser_mtx *mtx)
+mutex_enter_nowrap(struct franken_mtx *mtx)
 {
 	int rv;
 
@@ -579,7 +579,7 @@ mutex_enter_nowrap(struct rumpuser_mtx *mtx)
 }
 
 int
-mutex_tryenter(struct rumpuser_mtx *mtx)
+mutex_tryenter(struct franken_mtx *mtx)
 {
 	struct lwp *l = get_current()->lwp;
 
@@ -593,7 +593,7 @@ mutex_tryenter(struct rumpuser_mtx *mtx)
 }
 
 void
-mutex_exit(struct rumpuser_mtx *mtx)
+mutex_exit(struct franken_mtx *mtx)
 {
 
 	assert(mtx->v > 0);
@@ -604,7 +604,7 @@ mutex_exit(struct rumpuser_mtx *mtx)
 }
 
 void
-mutex_destroy(struct rumpuser_mtx *mtx)
+mutex_destroy(struct franken_mtx *mtx)
 {
 
 	assert(TAILQ_EMPTY(&mtx->waiters) && mtx->o == NULL);
@@ -612,13 +612,13 @@ mutex_destroy(struct rumpuser_mtx *mtx)
 }
 
 void
-mutex_owner(struct rumpuser_mtx *mtx, void **lp)
+mutex_owner(struct franken_mtx *mtx, void **lp)
 {
 
 	*lp = mtx->o;
 }
 
-struct rumpuser_rw {
+struct franken_rw {
 	struct waithead rwait;
 	struct waithead wwait;
 	int v;
@@ -626,9 +626,9 @@ struct rumpuser_rw {
 };
 
 void
-rw_init(struct rumpuser_rw **rwp)
+rw_init(struct franken_rw **rwp)
 {
-	struct rumpuser_rw *rw;
+	struct franken_rw *rw;
 
 	rw = calloc(1, sizeof(*rw));
 	if (!rw) abort();
@@ -639,7 +639,7 @@ rw_init(struct rumpuser_rw **rwp)
 }
 
 void
-rw_enter(int lk, struct rumpuser_rw *rw)
+rw_enter(int lk, struct franken_rw *rw)
 {
 	struct waithead *w = NULL;
 	int nlocks;
@@ -660,7 +660,7 @@ rw_enter(int lk, struct rumpuser_rw *rw)
 }
 
 int
-rw_tryenter(int lk, struct rumpuser_rw *rw)
+rw_tryenter(int lk, struct franken_rw *rw)
 {
 	int rv;
 
@@ -689,7 +689,7 @@ rw_tryenter(int lk, struct rumpuser_rw *rw)
 }
 
 void
-rw_exit(struct rumpuser_rw *rw)
+rw_exit(struct franken_rw *rw)
 {
 
 	if (rw->o) {
@@ -708,14 +708,14 @@ rw_exit(struct rumpuser_rw *rw)
 }
 
 void
-rw_destroy(struct rumpuser_rw *rw)
+rw_destroy(struct franken_rw *rw)
 {
 
 	free(rw);
 }
 
 void
-rw_held(int lk, struct rumpuser_rw *rw, int *rvp)
+rw_held(int lk, struct franken_rw *rw, int *rvp)
 {
 
 	switch (lk) {
@@ -729,7 +729,7 @@ rw_held(int lk, struct rumpuser_rw *rw, int *rvp)
 }
 
 void
-rw_downgrade(struct rumpuser_rw *rw)
+rw_downgrade(struct franken_rw *rw)
 {
 
 	assert(rw->o == curlwp());
@@ -737,7 +737,7 @@ rw_downgrade(struct rumpuser_rw *rw)
 }
 
 int
-rw_tryupgrade(struct rumpuser_rw *rw)
+rw_tryupgrade(struct franken_rw *rw)
 {
 
 	if (rw->v == -1) {
@@ -749,15 +749,15 @@ rw_tryupgrade(struct rumpuser_rw *rw)
 	return EBUSY;
 }
 
-struct rumpuser_cv {
+struct franken_cv {
 	struct waithead waiters;
 	int nwaiters;
 };
 
 void
-cv_init(struct rumpuser_cv **cvp)
+cv_init(struct franken_cv **cvp)
 {
-	struct rumpuser_cv *cv;
+	struct franken_cv *cv;
 
 	cv = calloc(1, sizeof(*cv));
 	if (!cv) abort();
@@ -766,7 +766,7 @@ cv_init(struct rumpuser_cv **cvp)
 }
 
 void
-cv_destroy(struct rumpuser_cv *cv)
+cv_destroy(struct franken_cv *cv)
 {
 
 	assert(cv->nwaiters == 0);
@@ -774,17 +774,16 @@ cv_destroy(struct rumpuser_cv *cv)
 }
 
 static void
-cv_unsched(struct rumpuser_mtx *mtx, int *nlocks)
+cv_unsched(struct franken_mtx *mtx, int *nlocks)
 {
 
 	mutex_exit(mtx);
 }
 
 static void
-cv_resched(struct rumpuser_mtx *mtx, int nlocks)
+cv_resched(struct franken_mtx *mtx, int nlocks)
 {
 
-	/* see rumpuser(3) */
 	if ((mtx->flags & (MTX_KMUTEX | MTX_SPIN)) ==
 	    (MTX_KMUTEX | MTX_SPIN)) {
 		mutex_enter_nowrap(mtx);
@@ -794,7 +793,7 @@ cv_resched(struct rumpuser_mtx *mtx, int nlocks)
 }
 
 void
-cv_wait(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx)
+cv_wait(struct franken_cv *cv, struct franken_mtx *mtx)
 {
 	int nlocks;
 
@@ -806,7 +805,7 @@ cv_wait(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx)
 }
 
 void
-cv_wait_nowrap(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx)
+cv_wait_nowrap(struct franken_cv *cv, struct franken_mtx *mtx)
 {
 
 	cv->nwaiters++;
@@ -817,7 +816,7 @@ cv_wait_nowrap(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx)
 }
 
 int
-cv_timedwait(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx, int64_t sec, int64_t nsec)
+cv_timedwait(struct franken_cv *cv, struct franken_mtx *mtx, int64_t sec, int64_t nsec)
 {
 	int nlocks;
 	int rv;
@@ -832,21 +831,21 @@ cv_timedwait(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx, int64_t sec, int6
 }
 
 void
-cv_signal(struct rumpuser_cv *cv)
+cv_signal(struct franken_cv *cv)
 {
 
 	wakeup_one(&cv->waiters);
 }
 
 void
-cv_broadcast(struct rumpuser_cv *cv)
+cv_broadcast(struct franken_cv *cv)
 {
 
 	wakeup_all(&cv->waiters);
 }
 
 void
-cv_has_waiters(struct rumpuser_cv *cv, int *rvp)
+cv_has_waiters(struct franken_cv *cv, int *rvp)
 {
 
 	*rvp = cv->nwaiters != 0;

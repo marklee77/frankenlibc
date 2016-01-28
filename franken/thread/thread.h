@@ -87,35 +87,35 @@ void join_thread(struct thread *);
 int clock_sleep(clockid_t, int64_t, long);
 void wake(struct thread *);
 
-struct rumpuser_mtx;
+struct franken_mtx;
 #define MTX_SPIN       0x01
 #define MTX_KMUTEX     0x02
-void mutex_init(struct rumpuser_mtx **, int);
-void mutex_enter(struct rumpuser_mtx *);
-void mutex_enter_nowrap(struct rumpuser_mtx *);
-int  mutex_tryenter(struct rumpuser_mtx *);
-void mutex_exit(struct rumpuser_mtx *);
-void mutex_destroy(struct rumpuser_mtx *);
-void mutex_owner(struct rumpuser_mtx *, void **);
+void mutex_init(struct franken_mtx **, int);
+void mutex_enter(struct franken_mtx *);
+void mutex_enter_nowrap(struct franken_mtx *);
+int  mutex_tryenter(struct franken_mtx *);
+void mutex_exit(struct franken_mtx *);
+void mutex_destroy(struct franken_mtx *);
+void mutex_owner(struct franken_mtx *, void **);
 
-struct rumpuser_rw;
+struct franken_rw;
 #define RW_READER 0
 #define RW_WRITER 1
-void rw_init(struct rumpuser_rw **);
-void rw_enter(int, struct rumpuser_rw *);
-int  rw_tryenter(int, struct rumpuser_rw *);
-int  rw_tryupgrade(struct rumpuser_rw *);
-void rw_downgrade(struct rumpuser_rw *);
-void rw_exit(struct rumpuser_rw *);
-void rw_destroy(struct rumpuser_rw *);
-void rw_held(int, struct rumpuser_rw *, int *);
+void rw_init(struct franken_rw **);
+void rw_enter(int, struct franken_rw *);
+int  rw_tryenter(int, struct franken_rw *);
+int  rw_tryupgrade(struct franken_rw *);
+void rw_downgrade(struct franken_rw *);
+void rw_exit(struct franken_rw *);
+void rw_destroy(struct franken_rw *);
+void rw_held(int, struct franken_rw *, int *);
 
-struct rumpuser_cv;
-void cv_init(struct rumpuser_cv **);
-void cv_destroy(struct rumpuser_cv *);
-void cv_wait(struct rumpuser_cv *, struct rumpuser_mtx *);
-void cv_wait_nowrap(struct rumpuser_cv *, struct rumpuser_mtx *);
-int  cv_timedwait(struct rumpuser_cv *, struct rumpuser_mtx *, int64_t, int64_t);
-void cv_signal(struct rumpuser_cv *);
-void cv_broadcast(struct rumpuser_cv *);
-void cv_has_waiters(struct rumpuser_cv *, int *);
+struct franken_cv;
+void cv_init(struct franken_cv **);
+void cv_destroy(struct franken_cv *);
+void cv_wait(struct franken_cv *, struct franken_mtx *);
+void cv_wait_nowrap(struct franken_cv *, struct franken_mtx *);
+int  cv_timedwait(struct franken_cv *, struct franken_mtx *, int64_t, int64_t);
+void cv_signal(struct franken_cv *);
+void cv_broadcast(struct franken_cv *);
+void cv_has_waiters(struct franken_cv *, int *);

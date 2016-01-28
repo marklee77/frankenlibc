@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <sys/uio.h>
+#include <time.h>
 
 #include <lkl_host.h>
 #include <asm/syscalls.h>
@@ -9,11 +10,10 @@
 #include "init.h"
 
 #include "thread.h"
-#include "rump/rumpuser.h"
 
 static int threads_are_go;
-static struct rumpuser_mtx *thrmtx;
-static struct rumpuser_cv *thrcv;
+static struct franken_mtx *thrmtx;
+static struct franken_cv *thrcv;
 
 struct thrdesc {
 	void (*f)(void *);
@@ -21,51 +21,47 @@ struct thrdesc {
 	int canceled;
 	void *thrid;
 	struct timespec timeout;
-	struct rumpuser_mtx *mtx;
-	struct rumpuser_cv *cv;
+	struct franken_mtx *mtx;
+	struct franken_cv *cv;
 };
 
-static void *rump_timer_trampoline(void *arg)
+static void *franken_timer_trampoline(void *arg)
 {
 	struct thrdesc *td = arg;
 	void (*f)(void *);
 	void *thrarg;
 	int err;
 
-	/* from src-netbsd/sys/rump/librump/rumpkern/thread.c */
-	/* don't allow threads to run before all CPUs have fully attached */
 	if (!threads_are_go) {
-		rumpuser_mutex_enter_nowrap(thrmtx);
+		mutex_enter_nowrap(thrmtx);
 		while (!threads_are_go) {
-			rumpuser_cv_wait_nowrap(thrcv, thrmtx);
+			cv_wait_nowrap(thrcv, thrmtx);
 		}
-		rumpuser_mutex_exit(thrmtx);
+		mutex_exit(thrmtx);
 	}
 
 	f = td->f;
 	thrarg = td->arg;
 	if (td->timeout.tv_sec != 0 || td->timeout.tv_nsec != 0) {
-		rumpuser_mutex_enter(td->mtx);
-		err = rumpuser_cv_timedwait(td->cv, td->mtx,
-					    td->timeout.tv_sec,
-					    td->timeout.tv_nsec);
+		mutex_enter(td->mtx);
+		err = cv_timedwait(td->cv, td->mtx,
+			 	   	       td->timeout.tv_sec,
+					       td->timeout.tv_nsec);
 		if (td->canceled) {
 			if (!td->thrid) {
-				rumpuser_free(td, 0);
+				free(td);
 			}
 			goto end;
 		}
-		rumpuser_mutex_exit(td->mtx);
-		/* FIXME: we should not use rumpuser__errtrans here */
-		/* FIXME: 60=>ETIMEDOUT(netbsd) rumpuser__errtrans(ETIMEDOUT)) */
+		mutex_exit(td->mtx);
 		if (err && err != 60)
 			goto end;
 	}
 
-	rumpuser_free(td, 0);
+	free(td);
 	f(thrarg);
 
-	rumpuser_thread_exit();
+	exit_thread();
 end:
 	return arg;
 }
@@ -78,56 +74,56 @@ static void print(const char *str, int len) {
 	ret = write(1, str, len);
 }
 
-struct rumpuser_sem {
-	struct rumpuser_mtx *lock;
+struct franken_sem {
+	struct franken_mtx *lock;
 	int count;
-	struct rumpuser_cv *cond;
+	struct franken_cv *cond;
 };
 
 static void *sem_alloc(int count)
 {
-	struct rumpuser_sem *sem;
+	struct franken_sem *sem;
 
-	rumpuser_malloc(sizeof(*sem), 0, (void **)&sem);
+	sem = malloc(sizeof(*sem));
 	if (!sem)
 		return NULL;
 
-	rumpuser_mutex_init(&sem->lock, RUMPUSER_MTX_SPIN);
+	mutex_init(&sem->lock, MTX_SPIN);
 	sem->count = count;
-	rumpuser_cv_init(&sem->cond);
+	cv_init(&sem->cond);
 
 	return sem;
 }
 
 static void sem_free(void *_sem)
 {
-	struct rumpuser_sem *sem = (struct rumpuser_sem *)_sem;
+	struct franken_sem *sem = (struct franken_sem *)_sem;
 
-	rumpuser_cv_destroy(sem->cond);
-	rumpuser_mutex_destroy(sem->lock);
-	rumpuser_free(sem, 0);
+	cv_destroy(sem->cond);
+	mutex_destroy(sem->lock);
+	free(sem);
 }
 
 static void sem_up(void *_sem)
 {
-	struct rumpuser_sem *sem = (struct rumpuser_sem *)_sem;
+	struct franken_sem *sem = (struct franken_sem *)_sem;
 
-	rumpuser_mutex_enter(sem->lock);
+	mutex_enter(sem->lock);
 	sem->count++;
 	if (sem->count > 0)
-		rumpuser_cv_signal(sem->cond);
-	rumpuser_mutex_exit(sem->lock);
+		cv_signal(sem->cond);
+	mutex_exit(sem->lock);
 }
 
 static void sem_down(void *_sem)
 {
-	struct rumpuser_sem *sem = (struct rumpuser_sem *)_sem;
+	struct franken_sem *sem = (struct franken_sem *)_sem;
 
-	rumpuser_mutex_enter(sem->lock);
+	mutex_enter(sem->lock);
 	while (sem->count <= 0)
-		rumpuser_cv_wait(sem->cond, sem->lock);
+		cv_wait(sem->cond, sem->lock);
 	sem->count--;
-	rumpuser_mutex_exit(sem->lock);
+	mutex_exit(sem->lock);
 }
 
 static int thread_create(void (*fn)(void *), void *arg)
@@ -137,16 +133,18 @@ static int thread_create(void (*fn)(void *), void *arg)
 
 static void thread_exit(void)
 {
-    rumpuser_thread_exit();
+    exit_thread();
 }
 
 static unsigned long long time(void) {
     int64_t sec;
     long nsec;
-    
-    rumpuser_clock_gettime(RUMPUSER_CLOCK_RELWALL, &sec, &nsec);
 
-    return ((unsigned long long)sec * NSEC_PER_SEC) + nsec;
+    struct timespec ts;
+    
+    if (-1 == clock_gettime(CLOCK_REALTIME, &ts)) return errno;
+
+    return ((unsigned long long)ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
 }
 
 // FIXME: timer functions don't seem right, but fixing them causes segfault...
@@ -159,20 +157,19 @@ static int timer_set_oneshot(void *timer, unsigned long ns)
 	struct thrdesc *td;
 	int ret;
 
-	rumpuser_malloc(sizeof(*td), 0, (void **)&td);
+	td = malloc(sizeof(*td));
 
 	memset(td, 0, sizeof(*td));
 	td->f = (void (*)(void *))timer;
 	td->timeout = (struct timespec){ .tv_sec = ns / NSEC_PER_SEC,
 					 .tv_nsec = ns % NSEC_PER_SEC};
 
-	rumpuser_mutex_init(&td->mtx, RUMPUSER_MTX_SPIN);
-	rumpuser_cv_init(&td->cv);
+	mutex_init(&td->mtx, MTX_SPIN);
+	cv_init(&td->cv);
 
-	ret = rumpuser_thread_create(rump_timer_trampoline, td, "timer",
-				     1, 0, -1, &td->thrid);
+	ret = create_thread(franken_timer_trampoline, td, "timer", 1, 0, -1, &td->thrid);
 	if (ret) {
-		rumpuser_free(td, 0);
+		free(td);
 		return -1;
 	}
 
@@ -186,22 +183,22 @@ static void timer_free(void *timer) {
 		return;
 
 	td->canceled = 1;
-	rumpuser_mutex_enter(td->mtx);
-	rumpuser_cv_signal(td->cv);
-	rumpuser_mutex_exit(td->mtx);
+	mutex_enter(td->mtx);
+	cv_signal(td->cv);
+	mutex_exit(td->mtx);
 
-	rumpuser_mutex_destroy(td->mtx);
-	rumpuser_cv_destroy(td->cv);
+	mutex_destroy(td->mtx);
+	cv_destroy(td->cv);
 
 	if (td->thrid)
-		rumpuser_thread_join(td->thrid);
+		join_thread(td->thrid);
 
-	rumpuser_free(td, 0);
+	free(td);
 }
 
 static void panic(void)
 {
-    rumpuser_exit(RUMPUSER_PANIC);
+    abort();
 }
 
 static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
@@ -286,7 +283,7 @@ finifn()
 }
 
 #define LKL_MEM_SIZE 100 * 1024 * 1024
-static char *boot_cmdline = "";    /* FIXME: maybe we have rump_set_boot_cmdline? */
+static char *boot_cmdline = "";
 
 static void
 printk(const char *msg)
@@ -329,8 +326,8 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
     init_sched();
 
-	rumpuser_mutex_init(&thrmtx, RUMPUSER_MTX_SPIN);
-	rumpuser_cv_init(&thrcv);
+	mutex_init(&thrmtx, MTX_SPIN);
+	cv_init(&thrcv);
 	threads_are_go = 0;
 
     lkl_host_ops.panic = panic;
@@ -352,10 +349,10 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
 	lkl_start_kernel(&lkl_host_ops, LKL_MEM_SIZE, boot_cmdline);
 
-	rumpuser_mutex_enter(thrmtx);
+	mutex_enter(thrmtx);
     threads_are_go = 1;
-	rumpuser_cv_broadcast(thrcv);
-	rumpuser_mutex_exit(thrmtx);
+	cv_broadcast(thrcv);
+	mutex_exit(thrmtx);
 
 	__init_libc(envp, argv[0]);
 	__libc_start_init();
@@ -363,7 +360,6 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	/* see if we have any devices to init */
 	__franken_fdinit_create();
 
-	/* XXX may need to have a rump kernel specific hook */
 	int lkl_if_up(int ifindex);
 	lkl_if_up(1);
 
