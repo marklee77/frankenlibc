@@ -299,27 +299,6 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
 
 rumpkernel_buildrump
 
-# remove libraries that are not/will not work
-rm -f ${RUMP}/lib/librumpdev_ugenhc.a
-rm -f ${RUMP}/lib/librumpfs_syspuffs.a
-rm -f ${RUMP}/lib/librumpkern_sysproxy.a
-rm -f ${RUMP}/lib/librumpnet_shmif.a
-rm -f ${RUMP}/lib/librumpnet_sockin.a
-rm -f ${RUMP}/lib/librumpvfs_fifofs.a
-rm -f ${RUMP}/lib/librumpdev_netsmb.a
-rm -f ${RUMP}/lib/librumpfs_smbfs.a
-rm -f ${RUMP}/lib/librumpdev_usb.a
-rm -f ${RUMP}/lib/librumpdev_ucom.a
-rm -f ${RUMP}/lib/librumpdev_ulpt.a
-rm -f ${RUMP}/lib/librumpdev_ubt.a
-rm -f ${RUMP}/lib/librumpkern_sys_linux.a
-rm -f ${RUMP}/lib/librumpdev_umass.a
-
-# remove crypto for now as very verbose
-rm -f ${RUMP}/lib/librumpkern_crypto.a
-rm -f ${RUMP}/lib/librumpdev_opencrypto.a
-rm -f ${RUMP}/lib/librumpdev_cgd.a
-
 # userspace libraries to build from NetBSD base
 USER_LIBS="m pthread z crypt util prop rmt ipsec"
 NETBSDLIBS="${RUMPSRC}/lib/libc"
