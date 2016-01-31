@@ -285,9 +285,7 @@ FRANKEN_CFLAGS="-std=c99 -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter
 
 if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
 
-if [ "${RUMP_KERNEL}" = "linux" ]; then
-    appendvar FRANKEN_CFLAGS "-I${LKLSRC}/tools/lkl/include"
-fi
+appendvar FRANKEN_CFLAGS "-I${LKLSRC}/tools/lkl/include"
 
 CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
@@ -298,16 +296,6 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         ${MAKE} ${OS} -C tools
 
 rumpkernel_buildrump
-
-# userspace libraries to build from NetBSD base
-USER_LIBS="m pthread z crypt util prop rmt ipsec"
-NETBSDLIBS="${RUMPSRC}/lib/libc"
-for f in ${USER_LIBS}
-do
-        appendvar NETBSDLIBS "${RUMPSRC}/lib/lib${f}"
-done
-
-RUMPMAKE=${RUMPOBJ}/tooldir/rumpmake
 
 # build userspace library for rumpkernel
 rumpkernel_createuserlib
@@ -362,43 +350,7 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 # build extra library
 rumpkernel_build_extra
 
-# find which libs we should link
-ALL_LIBS="${RUMP}/lib/librump.a
-	${RUMP}/lib/libfranken_tc.a
-	${RUMP}/lib/librumpdev*.a
-	${RUMP}/lib/librumpnet*.a
-	${RUMP}/lib/librumpfs*.a
-	${RUMP}/lib/librumpvfs*.a
-	${RUMP}/lib/librumpkern*.a"
-
-if [ ! -z ${LIBS+x} ]
-then
-	ALL_LIBS="${RUMP}/lib/librump.a ${RUMP}/lib/libfranken_tc.a"
-	for l in $(echo ${LIBS} | tr "," " ")
-	do
-		case ${l} in
-		dev_*)
-			appendvar ALL_LIBS "${RUMP}/lib/librumpdev.a"
-			;;
-		net_*)
-			appendvar ALL_LIBS "${RUMP}/lib/librumpnet.a ${RUMP}/lib/librumpnet_net.a"
-			;;
-		vfs_*)
-			appendvar ALL_LIBS "${RUMP}/lib/librumpvfs.a"
-			;;
-		fs_*)
-			appendvar ALL_LIBS "${RUMP}/lib/librumpvfs.a ${RUMP}/lib/librumpdev.a ${RUMP}/lib/librumpdev_disk.a"
-			;;
-		esac
-		appendvar ALL_LIBS "${RUMP}/lib/librump${l}.a"
-	done
-fi
-
-# for Linux case
-if [ ${RUMP_KERNEL} != "netbsd" ]
-then
-	ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblkl.a
-fi
+ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblkl.a
 
 # explode and implode
 rm -rf ${RUMPOBJ}/explode
@@ -432,10 +384,10 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	do
 		${AR-ar} x $f
 	done
-	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o rumpkernel.o
+	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o kernel.o
 
 	cd ${RUMPOBJ}/explode
-	${AR-ar} cr libc.a rumpkernel/rumpkernel.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
+	${AR-ar} cr libc.a rumpkernel/kernel.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
 )
 
 # install to OUTDIR
