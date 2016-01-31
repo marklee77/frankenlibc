@@ -68,7 +68,6 @@ helpme()
 	printf "\tnotests: do not run tests\n"
 	printf "\tnotools: do not build extra tools\n"
 	printf "\tclean: clean object directory first\n"
-	printf "Other options are passed to buildrump.sh\n"
 	printf "\n"
 	printf "Supported platforms are currently: linux, netbsd, freebsd, qemu-arm, spike\n"
 	exit 1
@@ -121,8 +120,6 @@ appendvar ()
 	shift
 	appendvar_fs "${vname}" ' ' $*
 }
-
-. ./buildrump/subr.sh
 
 while getopts '?b:d:F:Hhj:k:L:M:m:o:p:qrs:V:' opt; do
 	case "$opt" in
@@ -300,7 +297,6 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         RUMP="${RUMP}" \
         ${MAKE} ${OS} -C tools
 
-# call buildrump.sh
 rumpkernel_buildrump
 
 # remove libraries that are not/will not work
@@ -482,7 +478,7 @@ UNDEF="-D__NetBSD__ -D__RUMPRUN__"
 appendvar UNDEF "-U_BIG_ENDIAN -U_LITTLE_ENDIAN"
 if $(${CC-cc} -v 2>&1 | grep -q clang)
 then
-	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-clang) | sed -e 's/-clang//' -e 's/--/-rumprun-/')
+	TOOL_PREFIX=franken
 	# possibly some will need to be filtered if compiler complains. Also de-dupe.
 	COMPILER_FLAGS="-fno-stack-protector -Wno-unused-command-line-argument ${EXTRA_CPPFLAGS} ${UNDEF} ${EXTRA_CFLAGS} ${EXTRA_LDSCRIPT_CC}"
 	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
@@ -508,7 +504,7 @@ then
 	)
 else
 	# spec file for gcc
-	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-gcc) | sed -e 's/-gcc//' -e 's/--/-rumprun-/')
+    TOOL_PREFIX=franken
 	COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"
 	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
 	[ -f ${OUTDIR}/lib/crt0.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt0.o"

@@ -2,20 +2,19 @@
 
 rumpkernel_buildrump()
 {
-./buildrump/buildrump.sh \
-	-V RUMP_CURLWP=hypercall -V RUMP_LOCKS_UP=yes \
-	-V MKPIC=no -V RUMP_KERNEL_IS_LIBC=1 \
-	-F CFLAGS=-fno-stack-protector \
-	-k -s ${RUMPSRC} -o ${RUMPOBJ} -d ${RUMP} \
-	${BUILD_QUIET} ${STDJ} \
-	-F CPPFLAGS="${EXTRA_CPPFLAGS}" \
-	-F CFLAGS="${EXTRA_CFLAGS}" \
-	-F AFLAGS="${EXTRA_AFLAGS}" \
-	-F LDFLAGS="${EXTRA_LDFLAGS}" \
-	-F CWARNFLAGS="${EXTRA_CWARNFLAGS}" \
-	-F DBG="${F_DBG}" \
-	${EXTRAFLAGS} \
-	-l ${LKLSRC} tools linuxbuild install
+	echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
+	cd ${LKLSRC}
+	set -e
+	set -x
+	cd tools/lkl
+	make clean
+	make 
+	cd ../../
+	make headers_install ARCH=lkl O=${RUMP}/lkl-linux
+	set +e
+	set +x
+
+    cd ../frankenlibc
 
 }
 

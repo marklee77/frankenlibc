@@ -841,9 +841,9 @@ makelinuxbuild ()
 	set -x
 	cd tools/lkl
 	rm -f lib/lkl.o lib/liblinux.a
-	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ -j ${JNUM} ${VERBOSE} # FIXME: not supported yet O=${OBJDIR}/lkl-linux/
+	make -j ${JNUM} ${VERBOSE} # FIXME: not supported yet O=${OBJDIR}/lkl-linux/
 	cd ../../
-	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ headers_install ARCH=lkl O=${DESTDIR}/lkl-linux/
+	make headers_install ARCH=lkl O=${DESTDIR}/lkl-linux/
 	set +e
 	set +x
 }
@@ -1688,18 +1688,6 @@ if ${doprobe} || ${dotools} || ${dobuild} || ${dokernelheaders} \
 	${dolinuxbuild} && makelinuxbuild
 	${doinstall} && makeinstall
 
-	if ${dotests}; then
-		if ${KERNONLY}; then
-			diagout 'Kernel-only; skipping tests (no hypervisor)'
-		else
-			. ${BRDIR}/tests/testrump.sh
-			alltests
-		fi
-
-		if ${BUILDLINUX}; then
-			linuxtest
-		fi
-	fi
 fi
 
 diagout buildrump.sh ran successfully
