@@ -293,6 +293,7 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
 	make 
 	cd ../../
 	make headers_install ARCH=lkl O=${RUMP}/lkl-linux
+    cp arch/lkl/include/asm/syscalls.h ${RUMP}/lkl-linux/usr/include/asm/
 	set +e
 	set +x
 )
