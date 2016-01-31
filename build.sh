@@ -51,7 +51,6 @@ helpme()
 {
 	printf "Usage: $0 [-h] [options] [platform]\n"
 	printf "supported options:\n"
-	printf "\t-k: type of rump kernel [netbsd|linux]. default linux\n"
 	printf "\t-L: libraries to link eg net_netinet,net_netinet6. default all\n"
 	printf "\t-m: hardcode rump memory limit. default from env or unlimited\n"
 	printf "\t-M: thread stack size. default: 64k\n"
@@ -175,23 +174,12 @@ while getopts '?b:d:F:Hhj:k:L:M:m:o:p:qrs:V:' opt; do
 	"j")
 		STDJ="-j ${OPTARG}"
 		;;
-	"k")
-		if [ "${OPTARG}" != "netbsd" ] && [ "${OPTARG}" != "linux" ] ; then
-			echo ">> ERROR Unknown rump kernel type: ${OPTARG}"
-			helpme
-		fi
-		RUMP_KERNEL="${OPTARG}"
-		;;
 	"L")
 		LIBS="${OPTARG}"
 		;;
 	"M")
 		size=$(bytes ${OPTARG})
 		appendvar FRANKEN_FLAGS "-DSTACKSIZE=${size}"
-		;;
-	"m")
-		size=$(bytes ${OPTARG})
-		appendvar RUMPUSER_FLAGS "-DRUMP_MEMLIMIT=${size}"
 		;;
 	"o")
 		mkdir -p ${OPTARG}
@@ -326,17 +314,14 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
 
 # install headers
 ${INSTALL-install} -d ${OUTDIR}/include
+cp -a ${RUMP}/lkl-linux/usr/include/* ${OUTDIR}/include
+cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
 
-# install headers of userspace lib
 ## FIXME: MUSL_LIBC is somehow misleading as franken also uses.
 ## LINUX_LIBC?
 appendvar FRANKEN_FLAGS "-DMUSL_LIBC"
 appendvar EXTRA_CPPFLAGS "-DCONFIG_LKL"
 appendvar EXTRA_CFLAGS "-DCONFIG_LKL"
-
-# install headers
-cp -a ${RUMP}/lkl-linux/usr/include/* ${OUTDIR}/include
-cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
 
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
@@ -428,63 +413,34 @@ ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
 
 # create toolchain wrappers
 # select these based on compiler defs
-UNDEF="-D__RUMPRUN__"
-if $(${CC-cc} -v 2>&1 | grep -q clang)
-then
-	TOOL_PREFIX=franken
-	# possibly some will need to be filtered if compiler complains. Also de-dupe.
-	COMPILER_FLAGS="-fno-stack-protector -Wno-unused-command-line-argument ${EXTRA_CPPFLAGS} ${UNDEF} ${EXTRA_CFLAGS} ${EXTRA_LDSCRIPT_CC}"
-	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
-	# set up sysroot to see if it works
-	( cd ${OUTDIR} && ln -s . usr )
-	LIBGCC="$(${CC-cc} ${EXTRA_CPPFLAGS} ${EXTRA_CFLAGS} -print-libgcc-file-name)"
-	LIBGCCDIR="$(dirname ${LIBGCC})"
-	ln -s ${LIBGCC} ${OUTDIR}/lib/
-	ln -s ${LIBGCCDIR}/libgcc_eh.a ${OUTDIR}/lib/
-	if ${CC-cc} -I${OUTDIR}/include --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} tests/hello.c -o /dev/null 2>/dev/null
-	then
-		# can use sysroot with clang
-		printf "#!/bin/sh\n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
-	else
-		# sysroot does not work with linker eg NetBSD
-		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -B${OUTDIR}/lib"
-		printf "#!/bin/sh\n\nexec ${CC-cc} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
-	fi
-	COMPILER="${TOOL_PREFIX}-clang"
-	( cd ${BINDIR}
-	  ln -s ${COMPILER} ${TOOL_PREFIX}-cc
-	  ln -s ${COMPILER} rumprun-cc
-	)
-else
-	# spec file for gcc
-    TOOL_PREFIX=franken
-	COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"
-	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
-	[ -f ${OUTDIR}/lib/crt0.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt0.o"
-	[ -f ${OUTDIR}/lib/crt1.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt1.o"
-	appendvar STARTFILE "${OUTDIR}/lib/crti.o"
-	[ -f ${OUTDIR}/lib/crtbegin.o ] && appendvar STARTFILE "${OUTDIR}/lib/crtbegin.o"
-	[ -f ${OUTDIR}/lib/crtbeginT.o ] && appendvar STARTFILE "${OUTDIR}/lib/crtbeginT.o"
-	ENDFILE="${OUTDIR}/lib/crtend.o ${OUTDIR}/lib/crtn.o"
-	cat tools/spec.in | sed \
-		-e "s#@SYSROOT@#${OUTDIR}#g" \
-		-e "s#@CPPFLAGS@#${EXTRA_CPPFLAGS}#g" \
-		-e "s#@AFLAGS@#${EXTRA_AFLAGS}#g" \
-		-e "s#@CFLAGS@#${EXTRA_CFLAGS}#g" \
-		-e "s#@LDFLAGS@#${EXTRA_LDFLAGS}#g" \
-		-e "s#@LDSCRIPT@#${EXTRA_LDSCRIPT}#g" \
-		-e "s#@UNDEF@#${UNDEF}#g" \
-		-e "s#@STARTFILE@#${STARTFILE}#g" \
-		-e "s#@ENDFILE@#${ENDFILE}#g" \
-		-e "s/--sysroot=[^ ]*//" \
-		> ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec
-	printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_FLAGS} -static -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-gcc
-	COMPILER="${TOOL_PREFIX}-gcc"
-	( cd ${BINDIR}
-	  ln -s ${COMPILER} ${TOOL_PREFIX}-cc
-	  ln -s ${COMPILER} rumprun-cc
-	)
-fi
+UNDEF=""
+TOOL_PREFIX=franken
+COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"
+COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
+[ -f ${OUTDIR}/lib/crt0.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt0.o"
+[ -f ${OUTDIR}/lib/crt1.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt1.o"
+appendvar STARTFILE "${OUTDIR}/lib/crti.o"
+[ -f ${OUTDIR}/lib/crtbegin.o ] && appendvar STARTFILE "${OUTDIR}/lib/crtbegin.o"
+[ -f ${OUTDIR}/lib/crtbeginT.o ] && appendvar STARTFILE "${OUTDIR}/lib/crtbeginT.o"
+ENDFILE="${OUTDIR}/lib/crtend.o ${OUTDIR}/lib/crtn.o"
+cat tools/spec.in | sed \
+    -e "s#@SYSROOT@#${OUTDIR}#g" \
+    -e "s#@CPPFLAGS@#${EXTRA_CPPFLAGS}#g" \
+    -e "s#@AFLAGS@#${EXTRA_AFLAGS}#g" \
+    -e "s#@CFLAGS@#${EXTRA_CFLAGS}#g" \
+    -e "s#@LDFLAGS@#${EXTRA_LDFLAGS}#g" \
+    -e "s#@LDSCRIPT@#${EXTRA_LDSCRIPT}#g" \
+    -e "s#@UNDEF@#${UNDEF}#g" \
+    -e "s#@STARTFILE@#${STARTFILE}#g" \
+    -e "s#@ENDFILE@#${ENDFILE}#g" \
+    -e "s/--sysroot=[^ ]*//" \
+    > ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec
+printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_FLAGS} -static -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-gcc
+COMPILER="${TOOL_PREFIX}-gcc"
+( cd ${BINDIR}
+  ln -s ${COMPILER} ${TOOL_PREFIX}-cc
+  ln -s ${COMPILER} rumprun-cc
+)
 printf "#!/bin/sh\n\nexec ${AR-ar} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-ar
 printf "#!/bin/sh\n\nexec ${NM-nm} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-nm
 printf "#!/bin/sh\n\nexec ${OBJCOPY-objcopy} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-objcopy
