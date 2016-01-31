@@ -274,7 +274,6 @@ if [ "${OS}" = "unknown" ]; then
 fi
 
 [ -f platform/${OS}/platform.sh ] && . platform/${OS}/platform.sh
-[ -f rumpkernel/${RUMP_KERNEL}/rumpkernel.sh ] && . rumpkernel/${RUMP_KERNEL}/rumpkernel.sh
 
 RUNTESTS="${RUNTESTS-test}"
 MAKETOOLS="${MAKETOOLS-yes}"
@@ -295,18 +294,49 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         RUMP="${RUMP}" \
         ${MAKE} ${OS} -C tools
 
-rumpkernel_buildrump
+# build lkl
+echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
+(
+	cd ${LKLSRC}
+	set -e
+	set -x
+	cd tools/lkl
+	make clean
+	make 
+	cd ../../
+	make headers_install ARCH=lkl O=${RUMP}/lkl-linux
+	set +e
+	set +x
+)
 
-# build userspace library for rumpkernel
-rumpkernel_createuserlib
+# build musl libc for Linux
+(
+	set -x
+	echo "=== building musl ==="
+	cd ../musl
+	LKL_HEADER="${RUMP}/lkl-linux/"
+	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
+	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
+		    --disable-optimize --prefix=${RUMPOBJ}/musl 2>&1 | tee $CIRCLE_TEST_REPORTS/log-conf.txt
+	make install 2>&1 | tee $CIRCLE_TEST_REPORTS/log-make.txt
+	# install libraries
+	${INSTALL-install} -d ${OUTDIR}/lib
+	${INSTALL-install} ${RUMPOBJ}/musl/lib/libpthread.a ${RUMPOBJ}/musl/lib/libcrypt.a ${OUTDIR}/lib
+)
 
-# permissions set wrong
-chmod -R ug+rw ${RUMP}/include/*
 # install headers
 ${INSTALL-install} -d ${OUTDIR}/include
 
 # install headers of userspace lib
-rumpkernel_install_header
+## FIXME: MUSL_LIBC is somehow misleading as franken also uses.
+## LINUX_LIBC?
+appendvar FRANKEN_FLAGS "-DMUSL_LIBC"
+appendvar EXTRA_CPPFLAGS "-DCONFIG_LKL"
+appendvar EXTRA_CFLAGS "-DCONFIG_LKL"
+
+# install headers
+cp -a ${RUMP}/lkl-linux/usr/include/* ${OUTDIR}/include
+cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
 
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
@@ -347,9 +377,6 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 #	RUMP="${RUMP}" \
 #	${MAKE} ${STDJ} -C libvirtif
 
-# build extra library
-rumpkernel_build_extra
-
 ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblkl.a
 
 # explode and implode
@@ -361,14 +388,15 @@ mkdir -p ${RUMPOBJ}/explode/franken
 mkdir -p ${RUMPOBJ}/explode/platform
 (
 	# explode rumpkernel specific libc
-	rumpkernel_explode_libc
+	cd ${RUMPOBJ}/explode/musl
+	${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
 
 	# some franken .o file names conflict with libc
 	cd ${RUMPOBJ}/explode/franken
 	${AR-ar} x ${RUMP}/lib/libfranken.a
 	for f in *.o
 	do
-		[ -f ../${LIBC_DIR}/$f ] && mv $f franken_$f
+		[ -f ../musl/$f ] && mv $f franken_$f
 	done
 
 	# some platform .o file names conflict with libc
@@ -387,15 +415,12 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o kernel.o
 
 	cd ${RUMPOBJ}/explode
-	${AR-ar} cr libc.a rumpkernel/kernel.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
+	${AR-ar} cr libc.a rumpkernel/kernel.o musl/*.o franken/*.o platform/*.o
 )
 
 # install to OUTDIR
 ${INSTALL-install} -d ${BINDIR} ${OUTDIR}/lib
 ${INSTALL-install} ${RUMP}/bin/rexec ${BINDIR}
-
-# call rumpkernel specific routine
-rumpkernel_install_extra_libs
 
 ${INSTALL-install} ${RUMP}/lib/*.o ${OUTDIR}/lib
 [ -f ${RUMP}/lib/libg.a ] && ${INSTALL-install} ${RUMP}/lib/libg.a ${OUTDIR}/lib
@@ -476,12 +501,6 @@ then
 	#exit 1
 fi
 
-# install some useful applications
-if [ ${MAKETOOLS} = "yes" ]
-then
-	rumpkernel_maketools
-fi
-
 # Always make tests to exercise compiler
 CC="${BINDIR}/${COMPILER}" \
 	RUMPDIR="${OUTDIR}" \
@@ -492,7 +511,10 @@ CC="${BINDIR}/${COMPILER}" \
 # test for executable stack
 readelf -lW ${RUMPOBJ}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable executable section (stack?) found" 1>&2
 
-rumpkernel_build_test
+#${MAKE} -C tests/iputils clean
+#CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
+#cp tests/iputils/ping tests/iputils/ping6 ${OBJDIR}/
+#${MAKE} -C tests/iputils clean
 
 if [ ${RUNTESTS} = "test" ]
 then
