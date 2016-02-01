@@ -158,6 +158,7 @@ static int timer_set_oneshot(void *timer, unsigned long ns)
 	int ret;
 
 	td = malloc(sizeof(*td));
+    if (!td) return -1;
 
 	memset(td, 0, sizeof(*td));
 	td->f = (void (*)(void *))timer;
@@ -167,13 +168,13 @@ static int timer_set_oneshot(void *timer, unsigned long ns)
 	mutex_init(&td->mtx, MTX_SPIN);
 	cv_init(&td->cv);
 
-	ret = create_thread(franken_timer_trampoline, td, "timer", 1, 0, -1, &td->thrid);
-	if (ret) {
+	td->thrid = create_thread("timer", NULL, franken_timer_trampoline, td, NULL, 0, 1);
+	if (!td->thrid) {
 		free(td);
 		return -1;
 	}
 
-	return td ? 0 : -1;
+	return 0;
 } 
 
 static void timer_free(void *timer) {
