@@ -290,7 +290,6 @@ static int net_rx(union lkl_netdev nd, void *data, int *len)
 
 	ret = read(nd.fd, data, *len);
 	if (ret <= 0) {
-        printk("net_rx failed to read.\n");
         return -1;
     }
 	*len = ret;
@@ -303,14 +302,17 @@ static int net_poll(union lkl_netdev nd, int events)
 		.fd = nd.fd,
 	};
 	int ret = 0;
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 10;
 
 	if (events & LKL_DEV_NET_POLL_RX)
 		pfd.events |= POLLIN;
 	if (events & LKL_DEV_NET_POLL_TX)
 		pfd.events |= POLLOUT;
 
-	while (poll(&pfd, 1, -1) < 0 && errno == EINTR)
-		;
+	while (poll(&pfd, 1, 0) < 0 && errno == EINTR)
+		clock_nanosleep(CLOCK_REALTIME, 0, &ts, NULL);
 
 	if (pfd.revents & (POLLHUP | POLLNVAL))
 		return -1;
@@ -411,9 +413,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
         lkl_host_ops.print = print;
     }
 
-    printk("start kernel\n");
 	lkl_start_kernel(&lkl_host_ops, LKL_MEM_SIZE, boot_cmdline);
-    printk("kernel started\n");
 
 	mutex_enter(thrmtx);
     threads_are_go = 1;

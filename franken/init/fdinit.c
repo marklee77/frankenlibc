@@ -14,13 +14,6 @@
 #include <lkl.h>
 #include <lkl/asm/syscalls.h>
 
-#include <string.h>
-static void print(const char *str) {
-	int ret __attribute__((unused));
-
-	ret = write(1, str, strlen(str));
-}
-
 // FIXME: a static int only lets us add one disk and one dev
 static int disk_id;
 static int nd_id;
@@ -65,9 +58,7 @@ __franken_fdinit()
 			__franken_fd[fd].seek = 0;
 			union lkl_netdev nd;
 			nd.fd = fd;
-            print("add netdev\n");
 			nd_id = lkl_netdev_add(nd, NULL);
-            print("netdev added\n");
 			break;
 		}
 	}
@@ -92,11 +83,8 @@ register_net(int fd)
 {
 	/* FIXME: can we dynamically grab the real device address? */
     int ifindex;
-    print("lkl_netdev_get_ifindex\n");
     ifindex = lkl_netdev_get_ifindex(nd_id);
-    print("lkl if up\n");
 	lkl_if_up(ifindex);
-    print("lkl set ipv4 up\n");
 	lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24);
 }
 
