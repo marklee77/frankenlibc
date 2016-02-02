@@ -356,13 +356,6 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	RUMP="${RUMP}" \
 	${MAKE} ${STDJ} -C franken
 
-#CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
-#	LDFLAGS="${EXTRA_LDFLAGS}" \
-#	CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
-#	RUMPOBJ="${RUMPOBJ}" \
-#	RUMP="${RUMP}" \
-#	${MAKE} ${STDJ} -C libvirtif
-
 ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblkl.a
 
 # explode and implode
