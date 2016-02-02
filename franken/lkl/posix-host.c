@@ -1,3 +1,4 @@
+#include "thread.h"
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
@@ -17,7 +18,7 @@
 #include <lkl_host.h>
 #include "iomem.h"
 
-#if 0
+#define STDOUT_FILENO 1
 static void print(const char *str, int len)
 {
 	int ret __attribute__((unused));
@@ -25,120 +26,186 @@ static void print(const char *str, int len)
 	ret = write(STDOUT_FILENO, str, len);
 }
 
-struct pthread_sem {
-	pthread_mutex_t lock;
-	int count;
-	pthread_cond_t cond;
+struct franken_sem {
+    struct franken_mtx *lock;
+    int count;
+    struct franken_cv *cond;
 };
 
 static void *sem_alloc(int count)
 {
-	struct pthread_sem *sem;
+	struct franken_sem *sem;
 
 	sem = malloc(sizeof(*sem));
 	if (!sem)
 		return NULL;
 
-	pthread_mutex_init(&sem->lock, NULL);
+	mutex_init(&sem->lock, MTX_SPIN);
 	sem->count = count;
-	pthread_cond_init(&sem->cond, NULL);
+	cv_init(&sem->cond);
 
 	return sem;
 }
 
-static void sem_free(void *sem)
+static void sem_free(void *_sem)
 {
+	struct franken_sem *sem = (struct franken_sem *)_sem;
+
+	cv_destroy(sem->cond);
+	mutex_destroy(sem->lock);
 	free(sem);
 }
 
 static void sem_up(void *_sem)
 {
-	struct pthread_sem *sem = (struct pthread_sem *)_sem;
+	struct franken_sem *sem = (struct franken_sem *)_sem;
 
-	pthread_mutex_lock(&sem->lock);
+	mutex_enter(sem->lock);
 	sem->count++;
 	if (sem->count > 0)
-		pthread_cond_signal(&sem->cond);
-	pthread_mutex_unlock(&sem->lock);
+		cv_signal(sem->cond);
+	mutex_exit(sem->lock);
 }
 
 static void sem_down(void *_sem)
 {
-	struct pthread_sem *sem = (struct pthread_sem *)_sem;
+	struct franken_sem *sem = (struct franken_sem *)_sem;
 
-	pthread_mutex_lock(&sem->lock);
+	mutex_enter(sem->lock);
 	while (sem->count <= 0)
-		pthread_cond_wait(&sem->cond, &sem->lock);
+		cv_wait(sem->cond, sem->lock);
 	sem->count--;
-	pthread_mutex_unlock(&sem->lock);
+	mutex_exit(sem->lock);
 }
 
 static int thread_create(void (*fn)(void *), void *arg)
 {
-	pthread_t thread;
-
-	return pthread_create(&thread, NULL, (void* (*)(void *))fn, arg);
+    return create_thread("thread", NULL, fn, arg, NULL, 0, 0) ? 0 : EINVAL;
 }
 
 static void thread_exit(void)
 {
-	pthread_exit(NULL);
+    exit_thread();
 }
 
-static unsigned long long time_ns(void)
+#define NSEC_PER_SEC 1000000000
+
+static unsigned long long time_ns(void) 
 {
-	struct timeval tv;
+    struct timespec ts;
+    
+    if (-1 == clock_gettime(CLOCK_REALTIME, &ts)) return errno;
 
-	gettimeofday(&tv, NULL);
-
-	return tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
+    return ((unsigned long long)ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
 }
 
-static void *timer_alloc(void (*fn)(void *), void *arg)
+// FIXME: timer functions don't seem right, but fixing them causes segfault...
+static void *timer_alloc(void (*fn)(void *), void *arg) {
+    return fn;
+}
+
+extern int threads_are_go;
+extern struct franken_mtx *thrmtx;
+extern struct franken_cv *thrcv;
+
+struct thrdesc {
+	void (*f)(void *);
+	void *arg;
+	int canceled;
+	void *thrid;
+	struct timespec timeout;
+	struct franken_mtx *mtx;
+	struct franken_cv *cv;
+};
+
+static void franken_timer_trampoline(void *arg)
 {
+	struct thrdesc *td = arg;
+	void (*f)(void *);
+	void *thrarg;
 	int err;
-	timer_t timer;
-	struct sigevent se =  {
-		.sigev_notify = SIGEV_THREAD,
-		.sigev_value = {
-			.sival_ptr = arg,
-		},
-		.sigev_notify_function = (void (*)(union sigval))fn,
-	};
 
-	err = timer_create(CLOCK_REALTIME, &se, &timer);
-	if (err)
-		return NULL;
+	if (!threads_are_go) {
+		mutex_enter_nowrap(thrmtx);
+		while (!threads_are_go) {
+			cv_wait_nowrap(thrcv, thrmtx);
+		}
+		mutex_exit(thrmtx);
+	}
 
-	return (void *)(long)timer;
+	f = td->f;
+	thrarg = td->arg;
+	if (td->timeout.tv_sec != 0 || td->timeout.tv_nsec != 0) {
+		mutex_enter(td->mtx);
+		err = cv_timedwait(td->cv, td->mtx,
+			 	   	       td->timeout.tv_sec,
+					       td->timeout.tv_nsec);
+		if (td->canceled) {
+			if (!td->thrid) {
+				free(td);
+			}
+			goto end;
+		}
+		mutex_exit(td->mtx);
+		if (err && err != 60)
+			goto end;
+	}
+
+	free(td);
+	f(thrarg);
+
+	exit_thread();
+end:
+	return;
 }
 
-static int timer_set_oneshot(void *_timer, unsigned long ns)
+static int timer_set_oneshot(void *timer, unsigned long ns)
 {
-	timer_t timer = (timer_t)(long)_timer;
-	struct itimerspec ts = {
-		.it_value = {
-			.tv_sec = ns / 1000000000,
-			.tv_nsec = ns % 1000000000,
-		},
-	};
+	struct thrdesc *td;
 
-	if (!ts.it_value.tv_nsec)
-		ts.it_value.tv_nsec++;
+	td = malloc(sizeof(*td));
+    if (!td) return -1;
 
-	return timer_settime(timer, 0, &ts, NULL);
-}
+	memset(td, 0, sizeof(*td));
+	td->f = (void (*)(void *))timer;
+	td->timeout = (struct timespec){ .tv_sec = ns / NSEC_PER_SEC,
+					 .tv_nsec = ns % NSEC_PER_SEC};
 
-static void timer_free(void *_timer)
-{
-	timer_t timer = (timer_t)(long)_timer;
+	mutex_init(&td->mtx, MTX_SPIN);
+	cv_init(&td->cv);
 
-	timer_delete(timer);
+	td->thrid = create_thread("timer", NULL, franken_timer_trampoline, td, NULL, 0, 1);
+	if (!td->thrid) {
+		free(td);
+		return -1;
+	}
+
+	return 0;
+} 
+
+static void timer_free(void *timer) {
+	struct thrdesc *td = timer;
+
+	if (td->canceled)
+		return;
+
+	td->canceled = 1;
+	mutex_enter(td->mtx);
+	cv_signal(td->cv);
+	mutex_exit(td->mtx);
+
+	mutex_destroy(td->mtx);
+	cv_destroy(td->cv);
+
+	if (td->thrid)
+		join_thread(td->thrid);
+
+	free(td);
 }
 
 static void panic(void)
 {
-	assert(0);
+    abort();
 }
 
 struct lkl_host_operations lkl_host_ops = {
@@ -261,5 +328,3 @@ struct lkl_dev_net_ops lkl_dev_net_ops = {
 	.rx = net_rx,
 	.poll = net_poll,
 };
-
-#endif
