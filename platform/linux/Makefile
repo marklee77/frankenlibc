@@ -36,7 +36,7 @@ OBJ+=$(OBJDIR)/writev.o
 OBJ+=$(OBJDIR)/syscall.o $(OBJDIR)/syscall_ret.o
 OBJ+=$(OBJDIR)/vdso.o
 HEADERS=syscall.h linux.h
-INCLUDES=-I../include -I../../franken/include -I../../franken/init -I../../franken/ucontext -I../../librumpuser -I../../franken/thread -I.
+INCLUDES=-I../include -I../../franken/include -I../../franken/init -I../../franken/ucontext -I../../franken/thread -I.
 CPPFLAGS+=-nostdinc $(INCLUDES)
 CFLAGS+=-fno-stack-protector
 
