@@ -17,7 +17,7 @@ default:		$(OBJ)
 run:			$(OBJ)
 			dd if=/dev/zero of=disk.img bs=1024 count=20480
 			mkfs.ext4 -F disk.img
-			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/hello disk.img
+			FRANKEN_VERBOSE=1 ${REXEC} $(OBJDIR)/hello disk.img
 			${REXEC} $(OBJDIR)/ctor disk.img
 			#echo frankenlibc | ${REXEC} $(OBJDIR)/cat disk.img
 ifneq ($(wildcard $(OBJDIR)/ping),)
