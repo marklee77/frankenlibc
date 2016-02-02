@@ -6,10 +6,19 @@
 
 #include <lkl_host.h>
 #include <asm/syscalls.h>
+#include <poll.h>
 
 #include "init.h"
 
 #include "thread.h"
+
+static void
+printk(const char *msg)
+{
+	int ret __attribute__((unused));
+
+	ret = write(2, msg, strlen(msg));
+}
 
 static int threads_are_go;
 static struct franken_mtx *thrmtx;
@@ -25,7 +34,7 @@ struct thrdesc {
 	struct franken_cv *cv;
 };
 
-static void *franken_timer_trampoline(void *arg)
+static void franken_timer_trampoline(void *arg)
 {
 	struct thrdesc *td = arg;
 	void (*f)(void *);
@@ -63,7 +72,7 @@ static void *franken_timer_trampoline(void *arg)
 
 	exit_thread();
 end:
-	return arg;
+	return;
 }
 
 #define NSEC_PER_SEC 1000000000
@@ -136,10 +145,7 @@ static void thread_exit(void)
     exit_thread();
 }
 
-static unsigned long long time(void) {
-    int64_t sec;
-    long nsec;
-
+static unsigned long long time_ns(void) {
     struct timespec ts;
     
     if (-1 == clock_gettime(CLOCK_REALTIME, &ts)) return errno;
@@ -155,7 +161,6 @@ static void *timer_alloc(void (*fn)(void *), void *arg) {
 static int timer_set_oneshot(void *timer, unsigned long ns)
 {
 	struct thrdesc *td;
-	int ret;
 
 	td = malloc(sizeof(*td));
     if (!td) return -1;
@@ -202,6 +207,29 @@ static void panic(void)
     abort();
 }
 
+void *lkl_ioremap(long addr, int size);
+int lkl_iomem_access(const volatile void *addr, void *res, int size, int write);
+
+struct lkl_host_operations lkl_host_ops = {
+	.panic = panic,
+	.thread_create = thread_create,
+	.thread_exit = thread_exit,
+	.sem_alloc = sem_alloc,
+	.sem_free = sem_free,
+	.sem_up = sem_up,
+	.sem_down = sem_down,
+	.time = time_ns,
+	.timer_alloc = timer_alloc,
+	.timer_set_oneshot = timer_set_oneshot,
+	.timer_free = timer_free,
+	.print = print,
+	.mem_alloc = malloc,
+	.mem_free = free,
+	.ioremap = lkl_ioremap,
+	.iomem_access = lkl_iomem_access,
+	.virtio_devices = lkl_virtio_devs,
+};
+
 static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
 {
 	off_t off;
@@ -246,6 +274,61 @@ struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 	.request = blk_request,
 };
 
+static int net_tx(union lkl_netdev nd, void *data, int len)
+{
+	int ret;
+
+	ret = write(nd.fd, data, len);
+	if (ret <= 0 && errno == -EAGAIN)
+		return -1;
+	return 0;
+}
+
+static int net_rx(union lkl_netdev nd, void *data, int *len)
+{
+	int ret;
+
+	ret = read(nd.fd, data, *len);
+	if (ret <= 0) {
+        printk("net_rx failed to read.\n");
+        return -1;
+    }
+	*len = ret;
+	return 0;
+}
+
+static int net_poll(union lkl_netdev nd, int events)
+{
+	struct pollfd pfd = {
+		.fd = nd.fd,
+	};
+	int ret = 0;
+
+	if (events & LKL_DEV_NET_POLL_RX)
+		pfd.events |= POLLIN;
+	if (events & LKL_DEV_NET_POLL_TX)
+		pfd.events |= POLLOUT;
+
+	while (poll(&pfd, 1, -1) < 0 && errno == EINTR)
+		;
+
+	if (pfd.revents & (POLLHUP | POLLNVAL))
+		return -1;
+
+	if (pfd.revents & POLLIN)
+		ret |= LKL_DEV_NET_POLL_RX;
+	if (pfd.revents & POLLOUT)
+		ret |= LKL_DEV_NET_POLL_TX;
+
+	return ret;
+}
+
+struct lkl_dev_net_ops lkl_dev_net_ops = {
+	.tx = net_tx,
+	.rx = net_rx,
+	.poll = net_poll,
+};
+
 char **environ __attribute__((weak));
 
 static char empty_string[] = "";
@@ -286,14 +369,6 @@ finifn()
 #define LKL_MEM_SIZE 100 * 1024 * 1024
 static char *boot_cmdline = "";
 
-static void
-printk(const char *msg)
-{
-	int ret __attribute__((unused));
-
-	ret = write(2, msg, strlen(msg));
-}
-
 // this is needed because getenv does not work until after __init_libc
 static char *get_from_environ(const char *name) {
     int i;
@@ -331,24 +406,14 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	cv_init(&thrcv);
 	threads_are_go = 0;
 
-    lkl_host_ops.panic = panic;
-    lkl_host_ops.sem_alloc = sem_alloc;
-    lkl_host_ops.sem_free = sem_free;
-    lkl_host_ops.sem_up = sem_up;
-    lkl_host_ops.sem_down = sem_down;
-    lkl_host_ops.thread_create = thread_create;
-    lkl_host_ops.thread_exit = thread_exit;
-    lkl_host_ops.time = time;
-	lkl_host_ops.timer_alloc = timer_alloc;
-	lkl_host_ops.timer_set_oneshot = timer_set_oneshot;
-    lkl_host_ops.timer_free = timer_free;
-
     lkl_host_ops.print = NULL;
     if (get_from_environ("FRANKEN_VERBOSE")) {
         lkl_host_ops.print = print;
     }
 
+    printk("start kernel\n");
 	lkl_start_kernel(&lkl_host_ops, LKL_MEM_SIZE, boot_cmdline);
+    printk("kernel started\n");
 
 	mutex_enter(thrmtx);
     threads_are_go = 1;
@@ -358,11 +423,11 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	__init_libc(envp, argv[0]);
 	__libc_start_init();
 
+    /* lo up */
+	lkl_if_up(1);
+
 	/* see if we have any devices to init */
 	__franken_fdinit_create();
-
-	int lkl_if_up(int ifindex);
-	lkl_if_up(1);
 
 	atexit(finifn);
 

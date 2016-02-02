@@ -59,8 +59,6 @@ html:
 
 clean:
 	@rm -f *.o $(TARGETS)
-	-@$(MAKE) -C Modules clean
-	-@$(MAKE) -C doc clean
 
 snapshot:
 	@if [ "`uname -n`" != "takos" ]; then echo "Not authorized to advance snapshot"; exit 1; fi

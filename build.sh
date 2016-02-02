@@ -470,8 +470,6 @@ readelf -lW ${RUMPOBJ}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable e
 
 #${MAKE} -C tests/iputils clean
 #CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
-#cp tests/iputils/ping tests/iputils/ping6 ${OBJDIR}/
-#${MAKE} -C tests/iputils clean
 
 if [ ${RUNTESTS} = "test" ]
 then

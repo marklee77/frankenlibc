@@ -14,12 +14,16 @@
 #include <lkl.h>
 #include <lkl/asm/syscalls.h>
 
-static int disk_id;
+#include <string.h>
+static void print(const char *str) {
+	int ret __attribute__((unused));
 
-//static int nd_id;
-int lkl_netdev_add(union lkl_netdev nd, void *mac);
-int lkl_if_up(int ifindex);
-int lkl_netdev_get_ifindex(int id);
+	ret = write(1, str, strlen(str));
+}
+
+// FIXME: a static int only lets us add one disk and one dev
+static int disk_id;
+static int nd_id;
 
 struct __fdtable __franken_fd[MAXFD];
 
@@ -46,7 +50,6 @@ __franken_fdinit()
 			break;
 		case S_IFBLK:
 			__franken_fd[fd].seek = 1;
-			/* notify virtio-mmio dev id */
 			union lkl_disk disk;
 			disk.fd = fd;
 			disk_id = lkl_disk_add(disk);
@@ -60,10 +63,11 @@ __franken_fdinit()
 			break;
 		case S_IFSOCK:
 			__franken_fd[fd].seek = 0;
-			/* notify virtio-mmio dev id */
-			//union lkl_netdev nd;
-			//nd.fd = fd;
-			//nd_id = lkl_netdev_add(nd, NULL);
+			union lkl_netdev nd;
+			nd.fd = fd;
+            print("add netdev\n");
+			nd_id = lkl_netdev_add(nd, NULL);
+            print("netdev added\n");
 			break;
 		}
 	}
@@ -87,9 +91,13 @@ static void
 register_net(int fd)
 {
 	/* FIXME: can we dynamically grab the real device address? */
-	//lkl_if_up(lkl_netdev_get_ifindex(nd_id));
-	//lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0200010a /* 10.1.0.2 */,
-	//		24);
+    int ifindex;
+    print("lkl_netdev_get_ifindex\n");
+    ifindex = lkl_netdev_get_ifindex(nd_id);
+    print("lkl if up\n");
+	lkl_if_up(ifindex);
+    print("lkl set ipv4 up\n");
+	lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24);
 }
 
 static int
@@ -118,31 +126,6 @@ __franken_fdinit_create()
 {
 	int fd;
 	int n_block = 0;
-
-    /*
-	if (__franken_fd[0].valid) {
-		fd = register_reg(n_reg++, 0, O_RDONLY);
-		if (fd != -1) {
-			___sysimpl_dup2(fd, 0);
-			___sysimpl_close(fd);
-		}
-	}
-	if (__franken_fd[1].valid) {
-		fd = register_reg(n_reg++, 1, O_WRONLY);
-		if (fd != -1) {
-			___sysimpl_dup2(fd, 1);
-			___sysimpl_close(fd);
-		}
-	}
-
-	if (__franken_fd[2].valid) {
-		fd = register_reg(n_reg++, 2, O_WRONLY);
-		if (fd != -1) {
-			___sysimpl_dup2(fd, 2);
-			___sysimpl_close(fd);
-		}
-	}
-    */
 
 	/* XXX would be nicer to be able to detect a file system,
 	   but this also allows us not to mount a block device.
