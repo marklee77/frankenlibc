@@ -277,6 +277,7 @@ struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 static int net_tx(union lkl_netdev nd, void *data, int len)
 {
 	int ret;
+    printk("net_tx\n");
 
 	ret = write(nd.fd, data, len);
 	if (ret <= 0 && errno == -EAGAIN)
@@ -287,6 +288,7 @@ static int net_tx(union lkl_netdev nd, void *data, int len)
 static int net_rx(union lkl_netdev nd, void *data, int *len)
 {
 	int ret;
+    printk("net_rx\n");
 
 	ret = read(nd.fd, data, *len);
 	if (ret <= 0)
@@ -301,25 +303,35 @@ static int net_poll(union lkl_netdev nd, int events)
 		.fd = nd.fd,
 	};
 	int ret = 0;
-    struct timespec ts;
-    ts.tv_sec = 0;
-    ts.tv_nsec = 10;
+    printk("net_poll\n");
 
 	if (events & LKL_DEV_NET_POLL_RX)
 		pfd.events |= POLLIN;
 	if (events & LKL_DEV_NET_POLL_TX)
 		pfd.events |= POLLOUT;
 
-	while (poll(&pfd, 1, 0) < 0 && errno == EINTR)
-		clock_nanosleep(CLOCK_REALTIME, 0, &ts, NULL);
+	while (poll(&pfd, 1, 0) < 0 && errno == EINTR) {
+        printk("net_poll: sleep\n");
+		clock_sleep(CLOCK_REALTIME, 0, 10);
+    }
+    printk("net_poll: got something!\n");
 
-	if (pfd.revents & (POLLHUP | POLLNVAL))
+	if (pfd.revents & (POLLHUP | POLLNVAL)) {
+        printk("pollhup or pollnval\n");
 		return -1;
+    }
 
-	if (pfd.revents & POLLIN)
+	if (pfd.revents & POLLIN) {
+        printk("net_poll: receiving!\n");
 		ret |= LKL_DEV_NET_POLL_RX;
-	if (pfd.revents & POLLOUT)
+    }
+	if (pfd.revents & POLLOUT) {
+        printk("net_poll: transmitting!\n");
 		ret |= LKL_DEV_NET_POLL_TX;
+    }
+
+    if (ret < 0)
+        printk("poll ret < 0\n");
 
 	return ret;
 }

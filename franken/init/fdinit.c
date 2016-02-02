@@ -14,6 +14,8 @@
 #include <lkl.h>
 #include <lkl/asm/syscalls.h>
 
+// FIXME: we have printf for some errors, but printf causes segfault
+
 // FIXME: a static int only lets us add one disk and one dev
 static int disk_id;
 static int nd_id;
@@ -81,11 +83,15 @@ unmount_atexit(void)
 static void
 register_net(int fd)
 {
-	/* FIXME: can we dynamically grab the real device address? */
-    int ifindex;
+	/* FIXME: set address dynamically */
+    int ifindex, err;
     ifindex = lkl_netdev_get_ifindex(nd_id);
-	lkl_if_up(ifindex);
-	lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24);
+	if ((err = lkl_if_up(ifindex))) {
+        printf("could not bring up network device %d: %d\n", nd_id, err);
+    }
+	if ((err = lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24))) {
+        printf("could not set address for network device %d: %d\n", nd_id, err);
+    };
 }
 
 static int

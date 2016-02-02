@@ -461,8 +461,10 @@ CC="${BINDIR}/${COMPILER}" \
 # test for executable stack
 readelf -lW ${RUMPOBJ}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable executable section (stack?) found" 1>&2
 
-#${MAKE} -C tests/iputils clean
-#CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
+${MAKE} -C tests/iputils clean
+CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
+cp tests/iputils/ping tests/iputils/ping6 rumpobj/tests
+${MAKE} -C tests/iputils clean
 
 if [ ${RUNTESTS} = "test" ]
 then
