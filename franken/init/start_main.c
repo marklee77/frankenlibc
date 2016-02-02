@@ -289,9 +289,8 @@ static int net_rx(union lkl_netdev nd, void *data, int *len)
 	int ret;
 
 	ret = read(nd.fd, data, *len);
-	if (ret <= 0) {
+	if (ret <= 0)
         return -1;
-    }
 	*len = ret;
 	return 0;
 }
