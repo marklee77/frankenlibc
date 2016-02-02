@@ -362,11 +362,11 @@ ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblkl.a
 rm -rf ${RUMPOBJ}/explode
 mkdir -p ${RUMPOBJ}/explode/libc
 mkdir -p ${RUMPOBJ}/explode/musl
-mkdir -p ${RUMPOBJ}/explode/rumpkernel
+mkdir -p ${RUMPOBJ}/explode/kernel
 mkdir -p ${RUMPOBJ}/explode/franken
 mkdir -p ${RUMPOBJ}/explode/platform
 (
-	# explode rumpkernel specific libc
+	# explode kernel specific libc
 	cd ${RUMPOBJ}/explode/musl
 	${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
 
@@ -386,15 +386,17 @@ mkdir -p ${RUMPOBJ}/explode/platform
 		[ -f ../libc/$f ] && mv $f platform_$f
 	done
 
-	cd ${RUMPOBJ}/explode/rumpkernel
+	cd ${RUMPOBJ}/explode/kernel
 	for f in ${ALL_LIBS}
 	do
 		${AR-ar} x $f
 	done
+    # FIXME: overriding these files for now...
+    rm -f ${RUMPOBJ}/explode/kernel/posix-host.o
 	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o kernel.o
 
 	cd ${RUMPOBJ}/explode
-	${AR-ar} cr libc.a rumpkernel/kernel.o musl/*.o franken/*.o platform/*.o
+	${AR-ar} cr libc.a kernel/kernel.o musl/*.o franken/*.o platform/*.o
 )
 
 # install to OUTDIR
