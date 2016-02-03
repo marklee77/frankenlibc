@@ -115,6 +115,9 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	__init_libc(envp, argv[0]);
 	__libc_start_init();
 
+    /* crate base device */
+    lkl_sys_mknod("/dev/null", 0644, LKL_MKDEV(1, 3));
+
     /* lo up */
 	lkl_if_up(1);
 
