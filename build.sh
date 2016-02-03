@@ -290,6 +290,9 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
 	set -x
 	cd tools/lkl
 	make clean
+    make -C ../.. ARCH=lkl defconfig
+    sed -ie 's/^CONFIG_BTRFS_FS=y/# CONFIG_BTRFS_FS is not set/' ../../.config
+    make -C ../.. ARCH=lkl install INSTALL_PATH=$PWD
 	make CFLAGS='-Iinclude -Wall -g -O2 -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -fno-strict-aliasing -Wno-missing-field-initializers -fno-strict-aliasing -U_FORTIFY_SOURCE' lib/liblkl.a
 	cd ../../
 	make headers_install ARCH=lkl O=${RUMP}/lkl-linux
