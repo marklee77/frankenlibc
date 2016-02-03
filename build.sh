@@ -290,7 +290,7 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
 	set -x
 	cd tools/lkl
 	make clean
-	make 
+	make CFLAGS='-Iinclude -Wall -g -O2 -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -fno-strict-aliasing -Wno-missing-field-initializers -fno-strict-aliasing -U_FORTIFY_SOURCE' lib/liblkl.a
 	cd ../../
 	make headers_install ARCH=lkl O=${RUMP}/lkl-linux
     cp arch/lkl/include/asm/syscalls.h ${RUMP}/lkl-linux/usr/include/asm/
