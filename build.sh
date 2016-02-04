@@ -396,6 +396,7 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	done
     # FIXME: overriding these files for now...
     rm -f ${RUMPOBJ}/explode/kernel/posix-host.o
+    rm -f ${RUMPOBJ}/explode/kernel/virtio_net.o
 	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o kernel.o
 
 	cd ${RUMPOBJ}/explode

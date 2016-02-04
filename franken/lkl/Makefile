@@ -2,8 +2,7 @@ COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
 RUMPOBJ?=../../rumpobj
 OBJDIR=$(RUMPOBJ)/franken
-OBJ=$(OBJDIR)/posix-host.o
-#OBJ=$(OBJDIR)/stdio-init.o
+OBJ=$(OBJDIR)/posix-host.o $(OBJDIR)/virtio_net.o
 RUMP?=$(RUMPOBJ)/rump
 INCLUDES=-I../include -I../thread -I../ucontext -I../../platform/include -I. -I$(RUMP)/include
 LKLSRC?=../../../lkl-linux
@@ -20,9 +19,9 @@ $(OBJDIR)/posix-host.o:		posix-host.c
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ posix-host.c
 
-$(OBJDIR)/stdio-init.o:		stdio-init.c 
+$(OBJDIR)/virtio_net.o:		virtio_net.c 
 				@mkdir -p $(OBJDIR)
-				$(COMPILE.c) -o $@ stdio-init.c
+				$(COMPILE.c) -o $@ virtio_net.c
 
 .PHONY:				clean
 clean:		
