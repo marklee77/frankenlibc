@@ -1,41 +1,44 @@
-#define __KERNEL__
-
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/console.h>
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/syscalls.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
+#include <linux/major.h>
+#include <linux/uio.h>
 
-#if 0
+#include <asm/syscalls.h>
+#include <asm/host_ops.h>
+
+ssize_t __platform_write(int fd, const void *buf, size_t count);
+
 static ssize_t file_write(struct file *fp, const char __user *s,
 			  size_t n, loff_t *off)
 {
-	lkl_ops->print(s, n);
-	return n;
+	return __platform_write(1, s, n);
 }
+
+ssize_t __platform_read(int fd, void *buf, size_t count);
 
 static ssize_t file_read(struct file *file, char __user *buf, size_t size,
 			 loff_t *ppos)
 {
-	struct iovec iov;
-
-	iov.iov_base = buf;
-	iov.iov_len = size;
-
-	return -preadv(0, &iov, 1, 0);
+	return __platform_read(0, buf, size);
 }
 
 static struct file_operations lkl_stdio_fops = {
-	//.owner		= THIS_MODULE,
 	.write =	file_write,
 	.read =		file_read,
 };
 
-#endif
 static int __init lkl_stdio_init(void)
 {
-	int err = -1;
+	int err;
 
 	/* prepare /dev/console */
-	//err = register_chrdev(TTYAUX_MAJOR, "console", &lkl_stdio_fops);
+	err = register_chrdev(TTYAUX_MAJOR, "console", &lkl_stdio_fops);
 	if (err < 0) {
 		printk(KERN_ERR "can't register lkl stdio console.\n");
 		return err;
@@ -43,5 +46,6 @@ static int __init lkl_stdio_init(void)
 
 	return 0;
 }
+
 /* should be _before_ default_rootfs creation (noinitramfs.c) */
 fs_initcall(lkl_stdio_init);
