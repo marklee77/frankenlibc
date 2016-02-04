@@ -285,6 +285,10 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
 # build lkl
 echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
 (
+    # FIXME: kind of a hack, do something with modules instead?
+    cp kernel/stdio.c ${LKLSRC}/arch/lkl/kernel/stdio.c
+    sed -i '$ a obj-y += stdio.o' ${LKLSRC}/arch/lkl/kernel/Makefile
+
 	cd ${LKLSRC}
 	set -e
 	set -x
@@ -297,6 +301,11 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
 	cd ../../
 	make headers_install ARCH=lkl O=${RUMP}/lkl-linux
     cp arch/lkl/include/asm/syscalls.h ${RUMP}/lkl-linux/usr/include/asm/
+
+    # undo hack
+    rm ${LKLSRC}/arch/lkl/kernel/stdio.c
+    sed -i '/obj-y += stdio.o/d' ${LKLSRC}/arch/lkl/kernel/Makefile
+
 	set +e
 	set +x
 )

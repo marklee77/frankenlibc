@@ -3,12 +3,16 @@
 #include "virtio.h"
 #include "endian.h"
 
+#include "init.h"
+#include "thread.h"
+
 #define BIT(x) (1ULL << x)
 
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;
 	void *sem;
 	int event;
+	struct thread *rcvthr;
 };
 
 struct virtio_net_dev {
@@ -53,6 +57,9 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 		}
 	} else {
 		h->num_buffers = 1;
+
+		/* XXX: need to use this semantics for franken_poll(2) */
+		__franken_fd[net_dev->nd.fd].wake = net_dev->rx_poll.rcvthr;
 		ret = net_dev->ops->rx(net_dev->nd, buf, &len);
 		if (ret < 0) {
 			lkl_host_ops.sem_up(net_dev->rx_poll.sem);
@@ -123,10 +130,15 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	if (ret)
 		goto out_free;
 
-	if (lkl_host_ops.thread_create(poll_thread, &dev->rx_poll) < 0)
+	if ((dev->rx_poll.rcvthr = create_thread("virtio-net-rx", NULL,
+						  poll_thread,
+						  &dev->rx_poll, NULL, 0, 1))
+	    == NULL)
 		goto out_cleanup_dev;
 
-	if (lkl_host_ops.thread_create(poll_thread, &dev->tx_poll) < 0)
+	if (create_thread("virtio-net-tx", NULL,
+			  poll_thread, &dev->tx_poll,
+			  NULL, 0, 1) == NULL)
 		goto out_cleanup_dev;
 
 	/* RX/TX thread polls will exit when the host netdev handle is closed */

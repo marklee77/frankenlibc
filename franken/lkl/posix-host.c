@@ -309,8 +309,8 @@ static int net_poll(union lkl_netdev nd, int events)
 	if (events & LKL_DEV_NET_POLL_TX)
 		pfd.events |= POLLOUT;
 
-	while (poll(&pfd, 1, -1) < 0 && errno == EINTR)
-		;
+	while (poll(&pfd, 1, 0) < 0 && errno == EINTR)
+		clock_sleep(CLOCK_REALTIME, 10, 0);
 
 	if (pfd.revents & (POLLHUP | POLLNVAL))
 		return -1;
