@@ -86,6 +86,8 @@ void poll_thread(void *arg)
 			virtio_process_queue(&np->dev->dev, 0);
 		if (ret & LKL_DEV_NET_POLL_TX)
 			virtio_process_queue(&np->dev->dev, 1);
+		// FIXME: not sure *why* this is necessary here...
+		clock_sleep(CLOCK_REALTIME, 10, 0);
 		lkl_host_ops.sem_down(np->sem);
 	}
 }
