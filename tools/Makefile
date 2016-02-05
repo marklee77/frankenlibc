@@ -1,8 +1,8 @@
 COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
-RUMPOBJ?=../rumpobj
-OBJDIR=$(RUMPOBJ)/tools
-RUMP?=$(RUMPOBJ)/rump
-BINDIR=$(RUMP)/bin
+BUILDDIR?=../build
+OBJDIR=$(BUILDDIR)/tools
+STAGEDIR?=$(BUILDDIR)/stage
+BINDIR=$(STAGEDIR)/bin
 BIN=$(BINDIR)/rexec
 OBJ=$(OBJDIR)/rexec.o
 INC=rexec.h

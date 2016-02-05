@@ -2,13 +2,11 @@
 
 MAKE=${MAKE-make}
 
-RUMPOBJ=${PWD}/rumpobj
-RUMP=${RUMPOBJ}/rump
-RUMPSRC=${PWD}/src
+BUILDDIR=${PWD}/build
+STAGEDIR=${BUILDDIR}/stage
 LKLSRC=${PWD}/../lkl-linux
-OUTDIR=${PWD}/rump
+OUTDIR=${PWD}/dist
 NCPU=1
-RUMP_KERNEL=linux
 
 EXTRA_AFLAGS="-Wa,--noexecstack"
 
@@ -52,14 +50,13 @@ helpme()
 	printf "Usage: $0 [-h] [options] [platform]\n"
 	printf "supported options:\n"
 	printf "\t-L: libraries to link eg net_netinet,net_netinet6. default all\n"
-	printf "\t-m: hardcode rump memory limit. default from env or unlimited\n"
+	printf "\t-m: hardcode memory limit. default from env or unlimited\n"
 	printf "\t-M: thread stack size. default: 64k\n"
 	printf "\t-p: huge page size to use eg 2M or 1G\n"
 	printf "\t-r: release build, without debug settings\n"
-	printf "\t-s: location of source tree.  default: PWD/rumpsrc\n"
-	printf "\t-o: location of object files. default PWD/rumpobj\n"
-	printf "\t-d: location of installed files. default PWD/rump\n"
-	printf "\t-b: location of binaries. default PWD/rump/bin\n"
+	printf "\t-o: location of object files. default PWD/build\n"
+	printf "\t-d: location of installed files. default PWD/dest\n"
+	printf "\t-b: location of binaries. default PWD/dest/bin\n"
 	printf "\tseccomp|noseccomp: select Linux seccomp (default off)\n"
 	printf "\texecveat: use new linux execveat call default off)\n"
 	printf "\tcapsicum|nocapsicum: select FreeBSD capsicum (default on)\n"
@@ -183,8 +180,8 @@ while getopts '?b:d:F:Hhj:k:L:M:m:o:p:qrs:V:' opt; do
 		;;
 	"o")
 		mkdir -p ${OPTARG}
-		RUMPOBJ=$(abspath ${OPTARG})
-		RUMP=${RUMPOBJ}/rump
+		BUILDDIR=$(abspath ${OPTARG})
+		STAGEDIR=${BUILDDIR}/stage
 		;;
 	"p")
 		SIZE=$(bytes ${OPTARG})
@@ -196,9 +193,6 @@ while getopts '?b:d:F:Hhj:k:L:M:m:o:p:qrs:V:' opt; do
 	"r")
 		DBG_F="-O2"
 		appendvar EXTRAFLAGS "-r"
-		;;
-	"s")
-		RUMPSRC=${OPTARG}
 		;;
 	"V")
 		appendvar EXTRAFLAGS "-V ${OPTARG}"
@@ -278,8 +272,8 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
         LDFLAGS="${EXTRA_LDFLAGS}" \
         LDLIBS="${TOOLS_LDLIBS}" \
-        RUMPOBJ="${RUMPOBJ}" \
-        RUMP="${RUMP}" \
+        BUILDDIR="${BUILDDIR}" \
+        STAGEDIR="${STAGEDIR}" \
         ${MAKE} ${OS} -C tools
 
 # build lkl
@@ -299,8 +293,8 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
     make -C ../.. ARCH=lkl install INSTALL_PATH=$PWD
 	make CFLAGS='-Iinclude -Wall -g -O2 -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -fno-strict-aliasing -Wno-missing-field-initializers -fno-strict-aliasing -U_FORTIFY_SOURCE' lib/liblkl.a
 	cd ../../
-	make headers_install ARCH=lkl O=${RUMP}/lkl-linux
-    cp arch/lkl/include/asm/syscalls.h ${RUMP}/lkl-linux/usr/include/asm/
+	make headers_install ARCH=lkl O=${STAGEDIR}/lkl-linux
+    cp arch/lkl/include/asm/syscalls.h ${STAGEDIR}/lkl-linux/usr/include/asm/
 
     # undo hack
     rm ${LKLSRC}/arch/lkl/kernel/stdio.c
@@ -315,20 +309,20 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
 	set -x
 	echo "=== building musl ==="
 	cd ../musl
-	LKL_HEADER="${RUMP}/lkl-linux/"
+	LKL_HEADER="${STAGEDIR}/lkl-linux/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
-		    --disable-optimize --prefix=${RUMPOBJ}/musl 2>&1 | tee $CIRCLE_TEST_REPORTS/log-conf.txt
+		    --disable-optimize --prefix=${BUILDDIR}/musl 2>&1 | tee $CIRCLE_TEST_REPORTS/log-conf.txt
 	make install 2>&1 | tee $CIRCLE_TEST_REPORTS/log-make.txt
 	# install libraries
 	${INSTALL-install} -d ${OUTDIR}/lib
-	${INSTALL-install} ${RUMPOBJ}/musl/lib/libpthread.a ${RUMPOBJ}/musl/lib/libcrypt.a ${OUTDIR}/lib
+	${INSTALL-install} ${BUILDDIR}/musl/lib/libpthread.a ${BUILDDIR}/musl/lib/libcrypt.a ${OUTDIR}/lib
 )
 
 # install headers
 ${INSTALL-install} -d ${OUTDIR}/include
-cp -a ${RUMP}/lkl-linux/usr/include/* ${OUTDIR}/include
-cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
+cp -a ${STAGEDIR}/lkl-linux/usr/include/* ${OUTDIR}/include
+cp -a ${BUILDDIR}/musl/include/* ${OUTDIR}/include
 
 ## FIXME: MUSL_LIBC is somehow misleading as franken also uses.
 ## LINUX_LIBC?
@@ -341,8 +335,8 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	ASFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
 	LDFLAGS="${EXTRA_LDFLAGS}" \
 	CPPFLAGS="${EXTRA_CPPFLAGS}" \
-	RUMPOBJ="${RUMPOBJ}" \
-	RUMP="${RUMP}" \
+	BUILDDIR="${BUILDDIR}" \
+	STAGEDIR="${STAGEDIR}" \
 	${MAKE} ${STDJ} ${OS} -C platform
 
 # should clean up how deterministic build is done
@@ -353,8 +347,8 @@ then
 	ASFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
 	LDFLAGS="${EXTRA_LDFLAGS}" \
 	CPPFLAGS="${EXTRA_CPPFLAGS}" \
-	RUMPOBJ="${RUMPOBJ}" \
-	RUMP="${RUMP}" \
+	BUILDDIR="${BUILDDIR}" \
+	STAGEDIR="${STAGEDIR}" \
 	${MAKE} deterministic -C platform
 fi 
 
@@ -364,61 +358,61 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	LDFLAGS="${EXTRA_LDFLAGS}" \
 	CPPFLAGS="${EXTRA_CPPFLAGS} ${FRANKEN_FLAGS}" \
     LKLSRC="${LKLSRC}" \
-	RUMPOBJ="${RUMPOBJ}" \
-	RUMP="${RUMP}" \
+	BUILDDIR="${BUILDDIR}" \
+	STAGEDIR="${STAGEDIR}" \
 	${MAKE} ${STDJ} -C franken
 
 ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblkl.a
 
 # explode and implode
-rm -rf ${RUMPOBJ}/explode
-mkdir -p ${RUMPOBJ}/explode/libc
-mkdir -p ${RUMPOBJ}/explode/musl
-mkdir -p ${RUMPOBJ}/explode/kernel
-mkdir -p ${RUMPOBJ}/explode/franken
-mkdir -p ${RUMPOBJ}/explode/platform
+rm -rf ${BUILDDIR}/explode
+mkdir -p ${BUILDDIR}/explode/libc
+mkdir -p ${BUILDDIR}/explode/musl
+mkdir -p ${BUILDDIR}/explode/kernel
+mkdir -p ${BUILDDIR}/explode/franken
+mkdir -p ${BUILDDIR}/explode/platform
 (
 	# explode kernel specific libc
-	cd ${RUMPOBJ}/explode/musl
-	${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
+	cd ${BUILDDIR}/explode/musl
+	${AR-ar} x ${BUILDDIR}/musl/lib/libc.a
 
 	# some franken .o file names conflict with libc
-	cd ${RUMPOBJ}/explode/franken
-	${AR-ar} x ${RUMP}/lib/libfranken.a
+	cd ${BUILDDIR}/explode/franken
+	${AR-ar} x ${STAGEDIR}/lib/libfranken.a
 	for f in *.o
 	do
 		[ -f ../musl/$f ] && mv $f franken_$f
 	done
 
 	# some platform .o file names conflict with libc
-	cd ${RUMPOBJ}/explode/platform
-	${AR-ar} x ${RUMP}/lib/libplatform.a
+	cd ${BUILDDIR}/explode/platform
+	${AR-ar} x ${STAGEDIR}/lib/libplatform.a
 	for f in *.o
 	do
 		[ -f ../libc/$f ] && mv $f platform_$f
 	done
 
-	cd ${RUMPOBJ}/explode/kernel
+	cd ${BUILDDIR}/explode/kernel
 	for f in ${ALL_LIBS}
 	do
 		${AR-ar} x $f
 	done
     # FIXME: overriding these files for now...
-    rm -f ${RUMPOBJ}/explode/kernel/posix-host.o
-    rm -f ${RUMPOBJ}/explode/kernel/virtio_net.o
+    rm -f ${BUILDDIR}/explode/kernel/posix-host.o
+    rm -f ${BUILDDIR}/explode/kernel/virtio_net.o
 	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o kernel.o
 
-	cd ${RUMPOBJ}/explode
+	cd ${BUILDDIR}/explode
 	${AR-ar} cr libc.a kernel/kernel.o musl/*.o franken/*.o platform/*.o
 )
 
 # install to OUTDIR
 ${INSTALL-install} -d ${BINDIR} ${OUTDIR}/lib
-${INSTALL-install} ${RUMP}/bin/rexec ${BINDIR}
+${INSTALL-install} ${STAGEDIR}/bin/rexec ${BINDIR}
 
-${INSTALL-install} ${RUMP}/lib/*.o ${OUTDIR}/lib
-[ -f ${RUMP}/lib/libg.a ] && ${INSTALL-install} ${RUMP}/lib/libg.a ${OUTDIR}/lib
-${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
+${INSTALL-install} ${STAGEDIR}/lib/*.o ${OUTDIR}/lib
+[ -f ${STAGEDIR}/lib/libg.a ] && ${INSTALL-install} ${STAGEDIR}/lib/libg.a ${OUTDIR}/lib
+${INSTALL-install} ${BUILDDIR}/explode/libc.a ${OUTDIR}/lib
 
 # create toolchain wrappers
 # select these based on compiler defs
@@ -448,7 +442,6 @@ printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec $
 COMPILER="${TOOL_PREFIX}-gcc"
 ( cd ${BINDIR}
   ln -s ${COMPILER} ${TOOL_PREFIX}-cc
-  ln -s ${COMPILER} rumprun-cc
 )
 printf "#!/bin/sh\n\nexec ${AR-ar} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-ar
 printf "#!/bin/sh\n\nexec ${NM-nm} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-nm
@@ -468,24 +461,24 @@ fi
 
 # Always make tests to exercise compiler
 CC="${BINDIR}/${COMPILER}" \
-	RUMPDIR="${OUTDIR}" \
-	RUMPOBJ="${RUMPOBJ}" \
+	OUTDIR="${OUTDIR}" \
+	BUILDDIR="${BUILDDIR}" \
 	BINDIR="${BINDIR}" \
 	${MAKE} ${STDJ} -C tests
 
 # test for executable stack
-readelf -lW ${RUMPOBJ}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable executable section (stack?) found" 1>&2
+readelf -lW ${BUILDDIR}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable executable section (stack?) found" 1>&2
 
 ${MAKE} -C tests/iputils clean
 CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
-cp tests/iputils/ping tests/iputils/ping6 rumpobj/tests
+cp tests/iputils/ping tests/iputils/ping6 build/tests
 ${MAKE} -C tests/iputils clean
 
 if [ ${RUNTESTS} = "test" ]
 then
 	CC="${BINDIR}/${COMPILER}" \
-		RUMPDIR="${OUTDIR}" \
-		RUMPOBJ="${RUMPOBJ}" \
+		OUTDIR="${OUTDIR}" \
+		BUILDDIR="${BUILDDIR}" \
 		BINDIR="${BINDIR}" \
 		${MAKE} -C tests run
 

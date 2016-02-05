@@ -1,7 +1,7 @@
 COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
-RUMPOBJ?=../../rumpobj
-OBJDIR=$(RUMPOBJ)/franken
+BUILDDIR?=../../build
+OBJDIR=$(BUILDDIR)/franken
 OBJ+=$(OBJDIR)/malloc.o
 INCLUDES=-I../include -I../../platform/include
 CPPFLAGS+=-nostdinc $(INCLUDES)

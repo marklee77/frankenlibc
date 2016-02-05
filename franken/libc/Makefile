@@ -1,7 +1,7 @@
 COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
-RUMPOBJ?=../../rumpobj
-OBJDIR=$(RUMPOBJ)/stublibc
+BUILDDIR?=../../build
+OBJDIR=$(BUILDDIR)/stublibc
 LIB=$(OBJDIR)/libc.a
 OBJ+=$(OBJDIR)/abort.o
 OBJ+=$(OBJDIR)/assert.o $(OBJDIR)/atoi.o

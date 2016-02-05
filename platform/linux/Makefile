@@ -1,9 +1,9 @@
 COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
-RUMPOBJ?=../../rumpobj
-OBJDIR=$(RUMPOBJ)/platform
-RUMP?=$(RUMPOBJ)/rump
-CRTDIR=$(RUMP)/lib
+BUILDDIR?=../../build
+OBJDIR=$(BUILDDIR)/platform
+STAGEDIR?=$(BUILDDIR)/stage
+CRTDIR=$(STAGEDIR)/lib
 OBJ=$(CRTDIR)/crt1.o $(CRTDIR)/Scrt1.o
 OBJ+=$(CRTDIR)/crti.o $(CRTDIR)/crtn.o
 OBJ+=$(CRTDIR)/crtbegin.o $(CRTDIR)/crtbeginT.o

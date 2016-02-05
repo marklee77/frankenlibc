@@ -1,10 +1,10 @@
 COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
-RUMPOBJ?=../../rumpobj
-OUTDIR=$(RUMPOBJ)/franken-test
-STUBLIBCDIR=$(RUMPOBJ)/stublibc
-RUMP?=$(RUMPOBJ)/rump
-LIBDIR=$(RUMP)/lib
+BUILDDIR?=../../build
+OUTDIR=$(BUILDDIR)/franken-test
+STUBLIBCDIR=$(BUILDDIR)/stublibc
+STAGEDIR?=$(BUILDDIR)/stage
+LIBDIR=$(STAGEDIR)/lib
 FILES=$(OUTDIR)/args $(OUTDIR)/env $(OUTDIR)/_exit $(OUTDIR)/mmap
 INCLUDES=-I../include -I../../platform/include
 CPPFLAGS+=-nostdinc $(INCLUDES)
@@ -34,8 +34,8 @@ $(OUTDIR)/mmap:		mmap.c $(DEPS)
 .PHONY:			test
 test:			$(FILES)
 			@mkdir -p $(OUTDIR)
-			$(OUTDIR)/args franken rump
-			FRANKEN=RUMP $(OUTDIR)/env
+			$(OUTDIR)/args franken stage
+			FRANKEN=STAGE $(OUTDIR)/env
 			$(OUTDIR)/_exit
 			$(OUTDIR)/mmap
 

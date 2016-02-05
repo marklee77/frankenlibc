@@ -13,10 +13,10 @@ spike:
 PHONY:		clean distclean qemu-arm spike seccomp
 
 clean:		
-		rm -rf rumpobj
+		rm -rf build
 		make clean -C ../musl
 		make clean -C ../lkl-linux
 		make clean -C ../lkl-linux/tools/lkl
 
 distclean:	clean
-		rm -rf rump
+		rm -rf dist

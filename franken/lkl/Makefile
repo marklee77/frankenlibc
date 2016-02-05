@@ -1,10 +1,10 @@
 COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
-RUMPOBJ?=../../rumpobj
-OBJDIR=$(RUMPOBJ)/franken
+BUILDDIR?=../../build
+OBJDIR=$(BUILDDIR)/franken
 OBJ=$(OBJDIR)/posix-host.o $(OBJDIR)/virtio_net.o
-RUMP?=$(RUMPOBJ)/rump
-INCLUDES=-I../include -I../init -I../thread -I../ucontext -I../../platform/include -I. -I$(RUMP)/include
+STAGEDIR?=$(BUILDDIR)/stage
+INCLUDES=-I../include -I../init -I../thread -I../ucontext -I../../platform/include -I. -I$(STAGEDIR)/include
 LKLSRC?=../../../lkl-linux
 LKL_INCLUDES=-I$(LKLSRC)/include/uapi -I$(LKLSRC)/include
 LKL_INCLUDES+=-I$(LKLSRC)/arch/lkl/include/ -I$(LKLSRC)/arch/lkl/include/uapi

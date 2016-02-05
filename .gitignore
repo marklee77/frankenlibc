@@ -1,5 +1,6 @@
-/rump/
-/rumpobj/
+/build/
+/dist/
 *.core
+.*.swp
 ktrace.out
 tests/disk.img

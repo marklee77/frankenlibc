@@ -1,9 +1,9 @@
 DIRS=libc lwp stubs thread init ucontext malloc lkl
-RUMPOBJ?=../rumpobj
-RUMP?=$(RUMPOBJ)/rump
-LIBDIR=$(RUMP)/lib
+BUILDDIR?=../build
+STAGEDIR?=$(BUILDDIR)/stage
+LIBDIR=$(STAGEDIR)/lib
 LIB=$(LIBDIR)/libfranken.a
-OBJDIR=$(RUMPOBJ)/franken
+OBJDIR=$(BUILDDIR)/franken
 RANLIB?=ranlib
 
 .PHONY:		$(DIRS) clean test

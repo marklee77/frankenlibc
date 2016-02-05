@@ -1,8 +1,8 @@
-RUMPOBJ?=../rumpobj
-RUMP?=$(RUMPOBJ)/rump
-LIBDIR=$(RUMP)/lib
+BUILDDIR?=../build
+STAGEDIR?=$(BUILDDIR)/stage
+LIBDIR=$(STAGEDIR)/lib
 LIB=$(LIBDIR)/libplatform.a
-OBJDIR=$(RUMPOBJ)/platform
+OBJDIR=$(BUILDDIR)/platform
 RANLIB?=ranlib
 PLATFORMS=freebsd linux netbsd qemu-arm spike
 

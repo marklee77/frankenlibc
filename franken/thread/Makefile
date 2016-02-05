@@ -1,7 +1,7 @@
 COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
-RUMPOBJ?=../../rumpobj
-OBJDIR=$(RUMPOBJ)/franken
+BUILDDIR?=../../build
+OBJDIR=$(BUILDDIR)/franken
 OBJ=$(OBJDIR)/thread.o
 OBJ+=$(OBJDIR)/errno.o
 HEADERS=thread.h

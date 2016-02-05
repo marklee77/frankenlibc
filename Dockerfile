@@ -42,6 +42,6 @@ ENV SUDO_UID=1000
 
 RUN \
   cd /usr/src/frankenlibc && \
-  LDSTATIC=-static ./build.sh -F CPPFLAGS=-U_FORTIFY_SOURCE -d /usr/local/rump -b /usr/local/bin seccomp && \
-  cp rumpobj/tests/hello /usr/local/bin/rump.helloworld && \
+  LDSTATIC=-static ./build.sh -F CPPFLAGS=-U_FORTIFY_SOURCE -d /usr/local/franken -b /usr/local/bin seccomp && \
+  cp build/tests/hello /usr/local/bin/franken.helloworld && \
   make clean

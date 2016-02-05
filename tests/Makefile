@@ -1,10 +1,10 @@
-RUMPOBJ?=../rumpobj
-OBJDIR=$(RUMPOBJ)/tests
-RUMPDIR?=../rump
-LIBDIR=$(RUMPDIR)/lib
-BINDIR?=$(RUMPDIR)/bin
+BUILDDIR?=../build
+OBJDIR=$(BUILDDIR)/tests
+OUTDIR?=../dest
+LIBDIR=$(OUTDIR)/lib
+BINDIR?=$(OUTDIR)/bin
 REXEC=${BINDIR}/rexec
-INCDIR=$(RUMPDIR)/include
+INCDIR=$(OUTDIR)/include
 LDFLAGS+=-static
 CFLAGS+=-g
 
