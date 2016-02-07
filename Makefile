@@ -17,5 +17,5 @@ clean:
 mrproper:
 	rm -rf build
 
-distclean: clean
-	rm -rf dist
+distclean: 
+	rm -rf build dist
