@@ -5,7 +5,6 @@ MAKE=${MAKE-make}
 BUILDDIR=${PWD}/build
 STAGEDIR=${BUILDDIR}/stage
 LKLSRC=${BUILDDIR}/lkl-linux
-MUSLSRC=${BUILDDIR}/lkl-musl
 OUTDIR=${PWD}/dist
 NCPU=1
 
@@ -262,15 +261,21 @@ if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
 
 appendvar FRANKEN_CFLAGS "-I${LKLSRC}/tools/lkl/include"
 
-CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
-        CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
-        LDFLAGS="${EXTRA_LDFLAGS}" \
-        LDLIBS="${TOOLS_LDLIBS}" \
-        BUILDDIR="${BUILDDIR}" \
-        STAGEDIR="${STAGEDIR}" \
-        ${MAKE} ${OS} -C tools
+echo "=== building platform-musl ==="
+(
 
-# build lkl
+    [ -d ${BUILDDIR}/platform-musl ] || git clone  git://git.musl-libc.org/musl ${BUILDDIR}/platform-musl
+
+    set -x
+    cd ${BUILDDIR}/platform-musl
+    [ -f config.mak ] || ./configure --disable-shared --enable-debug \
+        --disable-optimize --prefix=${STAGEDIR}/platform-musl
+    make install
+)
+
+export CC=${STAGEDIR}/platform-musl/bin/musl-gcc
+export HOSTCC=${CC}
+
 echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
 (
     [ -d ${LKLSRC} ] || git clone https://github.com/lkl/linux.git ${LKLSRC}
@@ -299,28 +304,27 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
     set +x
 )
 
-# build musl libc for Linux
+echo "=== building lkl-musl ==="
 (
 
-    [ -d ${MUSLSRC} ] || git clone https://github.com/marklee77/musl.git ${MUSLSRC}
+    [ -d ${BUILDDIR}/lkl-musl ] || git clone https://github.com/marklee77/musl.git ${BUILDDIR}/lkl-musl
 
     set -x
-    echo "=== building musl ==="
-    cd ${MUSLSRC}
+    cd ${BUILDDIR}/lkl-musl
     git checkout origin/franken
     LKL_HEADER="${STAGEDIR}/lkl-linux/"
     [ -f config.mak ] || ./configure --with-lkl=${LKL_HEADER} --disable-shared \
-            --enable-debug --disable-optimize --prefix=${BUILDDIR}/musl
+            --enable-debug --disable-optimize --prefix=${STAGEDIR}/lkl-musl
     make install
     # install libraries
-    ${INSTALL-install} -d ${OUTDIR}/lib
-    ${INSTALL-install} ${BUILDDIR}/musl/lib/libpthread.a ${BUILDDIR}/musl/lib/libcrypt.a ${OUTDIR}/lib
+    #${INSTALL-install} -d ${OUTDIR}/lib
+    #${INSTALL-install} ${BUILDDIR}/musl/lib/libpthread.a ${BUILDDIR}/musl/lib/libcrypt.a ${OUTDIR}/lib
 )
 
 # install headers
 ${INSTALL-install} -d ${OUTDIR}/include
 cp -a ${STAGEDIR}/lkl-linux/usr/include/* ${OUTDIR}/include
-cp -a ${BUILDDIR}/musl/include/* ${OUTDIR}/include
+cp -a ${STAGEDIR}/lkl-musl/include/* ${OUTDIR}/include
 
 ## FIXME: MUSL_LIBC is somehow misleading as franken also uses.
 ## LINUX_LIBC?
@@ -360,28 +364,26 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
     STAGEDIR="${STAGEDIR}" \
     ${MAKE} ${STDJ} -C franken
 
-ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblkl.a
-
 # explode and implode
 rm -rf ${BUILDDIR}/explode
 mkdir -p ${BUILDDIR}/explode/libc
-mkdir -p ${BUILDDIR}/explode/musl
+mkdir -p ${BUILDDIR}/explode/lkl-musl
 mkdir -p ${BUILDDIR}/explode/kernel
 mkdir -p ${BUILDDIR}/explode/franken
 mkdir -p ${BUILDDIR}/explode/platform
 (
     # explode kernel specific libc
-    cd ${BUILDDIR}/explode/musl
-    ${AR-ar} x ${BUILDDIR}/musl/lib/libc.a
-    rm -f ${BUILDDIR}/explode/musl/execve.o
-    rm -f ${BUILDDIR}/explode/musl/posix_spawn.o
+    cd ${BUILDDIR}/explode/lkl-musl
+    ${AR-ar} x ${STAGEDIR}/lkl-musl/lib/libc.a
+    rm -f ${BUILDDIR}/explode/lkl-musl/execve.o
+    rm -f ${BUILDDIR}/explode/lkl-musl/posix_spawn.o
 
     # some franken .o file names conflict with libc
     cd ${BUILDDIR}/explode/franken
     ${AR-ar} x ${STAGEDIR}/lib/libfranken.a
     for f in *.o
     do
-        [ -f ../musl/$f ] && mv $f franken_$f
+        [ -f ../lkl-musl/$f ] && mv $f franken_$f
     done
 
     # some platform .o file names conflict with libc
@@ -389,22 +391,29 @@ mkdir -p ${BUILDDIR}/explode/platform
     ${AR-ar} x ${STAGEDIR}/lib/libplatform.a
     for f in *.o
     do
-        [ -f ../libc/$f ] && mv $f platform_$f
+        [ -f ../lkl-musl/$f ] && mv $f platform_$f
     done
 
     cd ${BUILDDIR}/explode/kernel
-    for f in ${ALL_LIBS}
-    do
-        ${AR-ar} x $f
-    done
-    # FIXME: overriding these files for now...
+    ${AR-ar} x ${LKLSRC}/tools/lkl/lib/liblkl.a
     rm -f ${BUILDDIR}/explode/kernel/posix-host.o
     rm -f ${BUILDDIR}/explode/kernel/virtio_net.o
     ${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o kernel.o
 
     cd ${BUILDDIR}/explode
-    ${AR-ar} cr libc.a kernel/kernel.o musl/*.o franken/*.o platform/*.o
+    ${AR-ar} cr libc.a kernel/kernel.o lkl-musl/*.o franken/*.o platform/*.o
+
 )
+
+# FIXME: should work...
+unset CC
+CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
+        CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
+        LDFLAGS="${EXTRA_LDFLAGS}" \
+        LDLIBS="${TOOLS_LDLIBS}" \
+        BUILDDIR="${BUILDDIR}" \
+        STAGEDIR="${STAGEDIR}" \
+        ${MAKE} ${OS} -C tools
 
 # install to OUTDIR
 ${INSTALL-install} -d ${BINDIR} ${OUTDIR}/lib
@@ -426,6 +435,7 @@ appendvar STARTFILE "${OUTDIR}/lib/crti.o"
 [ -f ${OUTDIR}/lib/crtbegin.o ] && appendvar STARTFILE "${OUTDIR}/lib/crtbegin.o"
 [ -f ${OUTDIR}/lib/crtbeginT.o ] && appendvar STARTFILE "${OUTDIR}/lib/crtbeginT.o"
 ENDFILE="${OUTDIR}/lib/crtend.o ${OUTDIR}/lib/crtn.o"
+
 cat tools/spec.in | sed \
     -e "s#@SYSROOT@#${OUTDIR}#g" \
     -e "s#@CPPFLAGS@#${EXTRA_CPPFLAGS}#g" \
@@ -438,11 +448,13 @@ cat tools/spec.in | sed \
     -e "s#@ENDFILE@#${ENDFILE}#g" \
     -e "s/--sysroot=[^ ]*//" \
     > ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec
+
 printf "%s\n\n%s %s %s\n" "#!/bin/sh" \
     "exec ${CC-cc} ${COMPILER_FLAGS} -static -nostdinc -z noexecstack" \
     "-specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec" \
     "-isystem ${OUTDIR}/include \"\$@\"" \
     > ${BINDIR}/${TOOL_PREFIX}-gcc
+
 COMPILER="${TOOL_PREFIX}-gcc"
 ( cd ${BINDIR}
   ln -s ${COMPILER} ${TOOL_PREFIX}-cc
@@ -455,7 +467,6 @@ if [ -n "${DUPSYMS}" ]
 then
     printf "WARNING: Duplicate symbols found:\n"
     echo ${DUPSYMS}
-    #exit 1
 fi
 
 # Always make tests to exercise compiler

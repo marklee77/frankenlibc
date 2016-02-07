@@ -8,11 +8,11 @@ PHONY: clean distclean seccomp
 
 clean:
 	rm -rf build/explode build/franken
-	make clean -C build/musl
+	make clean -C build/lkl-musl
 	make clean -C build/lkl-linux
 	make clean -C build/lkl-linux/tools/lkl
 
-mrproper: clean
+mrproper:
 	rm -rf build
 
 distclean: clean

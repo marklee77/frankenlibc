@@ -76,7 +76,7 @@ static struct virtio_dev_ops net_ops = {
 	.enqueue = net_enqueue,
 };
 
-void poll_thread(void *arg)
+static void poll_thread(void *arg)
 {
 	struct virtio_net_poll *np = (struct virtio_net_poll *)arg;
 	int ret;
