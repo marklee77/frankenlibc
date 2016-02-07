@@ -373,6 +373,8 @@ mkdir -p ${BUILDDIR}/explode/platform
     # explode kernel specific libc
     cd ${BUILDDIR}/explode/musl
     ${AR-ar} x ${BUILDDIR}/musl/lib/libc.a
+    rm -f ${BUILDDIR}/explode/musl/execve.o
+    rm -f ${BUILDDIR}/explode/musl/posix_spawn.o
 
     # some franken .o file names conflict with libc
     cd ${BUILDDIR}/explode/franken
@@ -436,7 +438,11 @@ cat tools/spec.in | sed \
     -e "s#@ENDFILE@#${ENDFILE}#g" \
     -e "s/--sysroot=[^ ]*//" \
     > ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec
-printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_FLAGS} -static -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-gcc
+printf "%s\n\n%s %s %s\n" "#!/bin/sh" \
+    "exec ${CC-cc} ${COMPILER_FLAGS} -static -nostdinc -z noexecstack" \
+    "-specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec" \
+    "-isystem ${OUTDIR}/include \"\$@\"" \
+    > ${BINDIR}/${TOOL_PREFIX}-gcc
 COMPILER="${TOOL_PREFIX}-gcc"
 ( cd ${BINDIR}
   ln -s ${COMPILER} ${TOOL_PREFIX}-cc
@@ -460,7 +466,8 @@ CC="${BINDIR}/${COMPILER}" \
     ${MAKE} ${STDJ} -C tests
 
 # test for executable stack
-readelf -lW ${BUILDDIR}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable executable section (stack?) found" 1>&2
+readelf -lW ${BUILDDIR}/tests/hello | grep RWE 1>&2 && \
+    echo "WARNING: writeable executable section (stack?) found" 1>&2
 
 ${MAKE} -C tests/iputils clean
 CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
