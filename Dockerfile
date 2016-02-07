@@ -8,17 +8,15 @@ RUN apt-get update && \
         bc \
         build-essential \
         git \
-        libseccomp2 \
         libseccomp-dev \
-        linux-libc-dev \
         python-minimal && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 ENV SUDO_UID=1000
 ENV FRANKEN_VERBOSE=1
 
-RUN mkdir -p /usr/src && \
-    cd /usr/src && \
+RUN useradd -m -s /bin/bash unikernel
+RUN cd /usr/src && \
     git clone https://github.com/marklee77/frankenlibc.git && \
     cd frankenlibc && \
     git checkout origin/lkl-musl && \
