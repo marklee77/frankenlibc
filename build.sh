@@ -260,6 +260,7 @@ FRANKEN_CFLAGS="-std=c99 -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter
 if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
 
 appendvar FRANKEN_CFLAGS "-I${LKLSRC}/tools/lkl/include"
+appendvar FRANKEN_CFLAGS "-I${STAGEDIR}/lkl-linux/usr/include"
 
 echo "=== building platform-musl ==="
 (
@@ -405,7 +406,7 @@ mkdir -p ${BUILDDIR}/explode/platform
 
 )
 
-# FIXME: should work...
+# FIXME: tools need to be ported to musl
 unset CC
 CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
