@@ -1,22 +1,19 @@
-default:	
-		./build.sh
+default:
+	./build.sh
 
 seccomp:
-		./build.sh seccomp
+	./build.sh seccomp
 
-qemu-arm:
-		./build.sh qemu-arm
+PHONY: clean distclean seccomp
 
-spike:
-		./build.sh spike
+clean:
+	rm -rf build/explode build/franken
+	make clean -C build/musl
+	make clean -C build/lkl-linux
+	make clean -C build/lkl-linux/tools/lkl
 
-PHONY:		clean distclean qemu-arm spike seccomp
+mrproper: clean
+	rm -rf build
 
-clean:		
-		rm -rf build
-		make clean -C ../musl
-		make clean -C ../lkl-linux
-		make clean -C ../lkl-linux/tools/lkl
-
-distclean:	clean
-		rm -rf dist
+distclean: clean
+	rm -rf dist
