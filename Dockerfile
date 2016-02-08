@@ -22,7 +22,7 @@ RUN cd /usr/src && \
     cd frankenlibc && \
     git checkout origin/lkl-musl && \
     ./build.sh -d /usr/local && \
-    cp rumpobj/tests/hello /usr/local/bin/franken.hello && \
+    cp build/tests/hello /usr/local/bin/franken.hello && \
     cd .. && \
     rm -rf frankenlibc
 
