@@ -12,15 +12,16 @@ RUN apt-get update && \
         python-minimal && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
+RUN useradd -m -s /bin/bash unikernel
+
 ENV SUDO_UID=1000
 ENV FRANKEN_VERBOSE=1
 
-RUN useradd -m -s /bin/bash unikernel
 RUN cd /usr/src && \
     git clone https://github.com/marklee77/frankenlibc.git && \
     cd frankenlibc && \
     git checkout origin/lkl-musl && \
-    ./build.sh -d /usr/local -b /usr/local/bin && \
+    ./build.sh -d /usr/local && \
     cp rumpobj/tests/hello /usr/local/bin/franken.hello && \
     cd .. && \
     rm -rf frankenlibc

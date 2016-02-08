@@ -261,6 +261,16 @@ if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
 
 appendvar FRANKEN_CFLAGS "-I${LKLSRC}/tools/lkl/include"
 
+# tools are compiled against platform libc
+echo "=== building tools ==="
+CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
+        CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
+        LDFLAGS="${EXTRA_LDFLAGS}" \
+        LDLIBS="${TOOLS_LDLIBS}" \
+        BUILDDIR="${BUILDDIR}" \
+        STAGEDIR="${STAGEDIR}" \
+        ${MAKE} ${OS} -C tools
+
 echo "=== building platform-musl ==="
 (
 
@@ -405,16 +415,6 @@ mkdir -p ${BUILDDIR}/explode/platform
 
 )
 
-# FIXME: tools need to be ported to musl
-unset CC
-CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
-        CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
-        LDFLAGS="${EXTRA_LDFLAGS}" \
-        LDLIBS="${TOOLS_LDLIBS}" \
-        BUILDDIR="${BUILDDIR}" \
-        STAGEDIR="${STAGEDIR}" \
-        ${MAKE} ${OS} -C tools
-
 # install to OUTDIR
 ${INSTALL-install} -d ${BINDIR} ${OUTDIR}/lib
 ${INSTALL-install} ${STAGEDIR}/bin/rexec ${BINDIR}
@@ -450,7 +450,7 @@ cat tools/spec.in | sed \
     > ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec
 
 printf "%s\n\n%s %s %s\n" "#!/bin/sh" \
-    "exec ${CC-cc} ${COMPILER_FLAGS} -static -nostdinc -z noexecstack" \
+    "exec gcc ${COMPILER_FLAGS} -static -nostdinc -z noexecstack" \
     "-specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec" \
     "-isystem ${OUTDIR}/include \"\$@\"" \
     > ${BINDIR}/${TOOL_PREFIX}-gcc
