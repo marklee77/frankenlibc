@@ -9,12 +9,16 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+// FIXME: this typedef shouldn't be necessary
+typedef unsigned socklen_t;
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "init.h"
 
 #include <lkl.h>
 #include <lkl/asm/syscalls.h>
-
-// FIXME: we have printf for some errors, but printf causes segfault
 
 // FIXME: a static int only lets us add one disk and one dev
 static int disk_id;
@@ -84,14 +88,16 @@ static void
 register_net(int fd)
 {
 	/* FIXME: set address dynamically */
-    int ifindex, err;
-    ifindex = lkl_netdev_get_ifindex(nd_id);
+	int ifindex, err;
+	ifindex = lkl_netdev_get_ifindex(nd_id);
 	if ((err = lkl_if_up(ifindex))) {
-        printf("could not bring up network device %d: %d\n", nd_id, err);
-    }
+		//printf("could not bring up network device %d: %d\n", nd_id, err);
+		;
+	}
 	if ((err = lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24))) {
-        printf("could not set address for network device %d: %d\n", nd_id, err);
-    };
+		//printf("could not set address for network device %d: %d\n", nd_id, err);
+		;
+	}
 }
 
 static int
@@ -103,13 +109,13 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
 			    sizeof(mnt_point));
 	if (ret < 0) {
-		printf("can't mount disk (%d) at %s. err=%d\n",
-			disk_id, mnt_point, ret);
-    } else if (root) {
-        lkl_sys_chroot(mnt_point);
-        lkl_sys_mkdir("/dev", 0755);
-        lkl_sys_mknod("/dev/null", 0644, LKL_MKDEV(1, 3));
-    }
+		//printf("can't mount disk (%d) at %s. err=%d\n", disk_id, mnt_point, ret);
+		;
+	} else if (root) {
+		lkl_sys_chroot(mnt_point);
+		lkl_sys_mkdir("/dev", 0755);
+		lkl_sys_mknod("/dev/null", 0644, LKL_MKDEV(1, 3));
+	}
 
 	atexit(unmount_atexit);
 	return ret;
