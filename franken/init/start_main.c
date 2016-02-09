@@ -67,8 +67,8 @@ static char *get_from_environ(const char *name) {
 int
 __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, char **envp)
 {
-	uintptr_t a;
 	void (*print)(const char *, int);
+	char *val;
 
 	environ = envp;
 
@@ -90,9 +90,9 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	threads_are_go = 0;
 
 	print = lkl_host_ops.print;
-	if (!get_from_environ("FRANKEN_VERBOSE")) {
-        	lkl_host_ops.print = NULL;
-	}
+        lkl_host_ops.print = NULL;
+	if ((val = get_from_environ("FRANKEN_VERBOSE")) && atoi(val))
+		lkl_host_ops.print = print;
 
 	lkl_start_kernel(&lkl_host_ops, LKL_MEM_SIZE, boot_cmdline);
 
