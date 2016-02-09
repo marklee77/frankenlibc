@@ -164,7 +164,7 @@ static int timer_set_oneshot(void *timer, unsigned long ns)
 	struct thrdesc *td;
 
 	td = malloc(sizeof(*td));
-    if (!td) return -1;
+	if (!td) return -1;
 
 	memset(td, 0, sizeof(*td));
 	td->f = (void (*)(void *))timer;
