@@ -13,6 +13,7 @@ struct __fdtable {
 	int seek;
 	struct stat st;
 	struct thread *wake;
+	int device_id;
 	int mounted;
 	int hasaddr;
 	struct in_addr addr;

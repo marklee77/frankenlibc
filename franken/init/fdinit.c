@@ -20,9 +20,7 @@ typedef unsigned socklen_t;
 #include <lkl.h>
 #include <lkl/asm/syscalls.h>
 
-// FIXME: a static int only lets us add one disk and one dev
-static int disk_id;
-static int nd_id;
+// FIXME: move ids to __fdtable
 
 struct __fdtable __franken_fd[MAXFD];
 
@@ -51,7 +49,7 @@ __franken_fdinit()
 			__franken_fd[fd].seek = 1;
 			union lkl_disk disk;
 			disk.fd = fd;
-			disk_id = lkl_disk_add(disk);
+			__franken_fd[fd].device_id = lkl_disk_add(disk);
 			break;
 		case S_IFCHR:
 			/* XXX Linux presents stdin as char device see notes to clean up */
@@ -64,7 +62,7 @@ __franken_fdinit()
 			__franken_fd[fd].seek = 0;
 			union lkl_netdev nd;
 			nd.fd = fd;
-			nd_id = lkl_netdev_add(nd, NULL);
+			__franken_fd[fd].device_id = lkl_netdev_add(nd, NULL);
 			break;
 		}
 	}
@@ -89,13 +87,13 @@ register_net(int fd)
 {
 	/* FIXME: set address dynamically */
 	int ifindex, err;
-	ifindex = lkl_netdev_get_ifindex(nd_id);
+	ifindex = lkl_netdev_get_ifindex(__franken_fd[fd].device_id);
 	if ((err = lkl_if_up(ifindex))) {
-		//printf("could not bring up network device %d: %d\n", nd_id, err);
+		//printf("could not bring up network device %d: %d\n", __franken_fd[fd].device_id, err);
 		;
 	}
 	if ((err = lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24))) {
-		//printf("could not set address for network device %d: %d\n", nd_id, err);
+		//printf("could not set address for network device %d: %d\n", __franken_fd[fd].device_id, err);
 		;
 	}
 }
@@ -106,10 +104,10 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 	int ret;
 	char mnt_point[32];
 
-	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
-			    sizeof(mnt_point));
+	ret = lkl_mount_dev(__franken_fd[fd].device_id, "ext4", 0, NULL, 
+			    mnt_point, sizeof(mnt_point));
 	if (ret < 0) {
-		//printf("can't mount disk (%d) at %s. err=%d\n", disk_id, mnt_point, ret);
+		//printf("can't mount disk (%d) at %s. err=%d\n", __franken_fd[fd].device_id, mnt_point, ret);
 		;
 	} else if (root) {
 		lkl_sys_chroot(mnt_point);
