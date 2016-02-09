@@ -82,19 +82,30 @@ unmount_atexit(void)
 	ret = lkl_sys_umount("/etc", 0);
 }
 
+// FIXME: change env vars to FIXED_%FD_ADDR to support multiple devices
 static void
 register_net(int fd)
 {
-	/* FIXME: set address dynamically */
 	int ifindex, err;
+	char *addr, *mask, *gw;
+
 	ifindex = lkl_netdev_get_ifindex(__franken_fd[fd].device_id);
 	if ((err = lkl_if_up(ifindex))) {
 		//printf("could not bring up network device %d: %d\n", __franken_fd[fd].device_id, err);
 		;
 	}
-	if ((err = lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24))) {
-		//printf("could not set address for network device %d: %d\n", __franken_fd[fd].device_id, err);
-		;
+
+	addr = getenv("FIXED_ADDRESS");
+	mask = getenv("FIXED_MASK");
+	gw = getenv("FIXED_GATEWAY");
+	
+	// FIXME: check for error
+	if (addr && mask && gw) {
+		lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask));
+		lkl_set_ipv4_gateway(inet_addr(gw));
+	} else {
+
+		lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24);
 	}
 }
 
@@ -125,11 +136,7 @@ __franken_fdinit_create()
 	int fd;
 	int n_block = 0;
 
-	/* XXX would be nicer to be able to detect a file system,
-	   but this also allows us not to mount a block device.
-	   Pros and cons, may change if this is not convenient */
-
-	/* only fd 3 will be mounted as root file system */
+	/* FIXME: make FIRST block mount, do not hard code to 3rd */
 	if (__franken_fd[3].valid) {
 		fd = 3;
 		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
@@ -152,7 +159,7 @@ __franken_fdinit_create()
 			break;
 		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
 		case S_IFREG:
-            // FIXME: register regular file? when does this happen?
+			// FIXME: register regular file? when does this happen?
 			break;
 		case S_IFBLK:
 			register_block(n_block++, fd, __franken_fd[fd].flags & O_ACCMODE,
@@ -164,6 +171,6 @@ __franken_fdinit_create()
 		}
 	}
 
-	/* now some generic stuff */
+	/* FIXME: put all generic setup here? */
 	mount_tmpfs();
 }
