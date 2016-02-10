@@ -111,11 +111,14 @@ register_net(int fd)
 		print("\nfixed gateway; ");
 		print(gw);
 		print("\n");
-		lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask));
-		lkl_set_ipv4_gateway(inet_addr(gw));
+		if ((err = lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask)))) {
+			print("failed to set ipv4\n");
+		}
+		if ((err = lkl_set_ipv4_gateway(inet_addr(gw)))) {
+			print("failed to set gateway\n");
+		}
 	} else {
-
-		lkl_if_set_ipv4(ifindex, 0x0200010a /* 10.1.0.2 */, 24);
+		lkl_if_set_ipv4(ifindex, inet_addr("10.1.0.2"), 24);
 	}
 }
 

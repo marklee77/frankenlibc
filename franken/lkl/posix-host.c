@@ -18,6 +18,13 @@
 #include <lkl_host.h>
 #include "iomem.h"
 
+static void printk(const char *str)
+{
+        int ret __attribute__((unused));
+
+        ret = write(1, str, strlen(str));
+}
+
 #define STDOUT_FILENO 1
 static void print(const char *str, int len)
 {
@@ -280,6 +287,7 @@ static int net_tx(union lkl_netdev nd, void *data, int len)
 {
 	int ret;
 
+	printk("net_tx\n");
 	ret = write(nd.fd, data, len);
 	if (ret <= 0 && errno == -EAGAIN)
 		return -1;
@@ -290,6 +298,7 @@ static int net_rx(union lkl_netdev nd, void *data, int *len)
 {
 	int ret;
 
+	printk("net_rx\n");
 	ret = read(nd.fd, data, *len);
 	if (ret <= 0)
 		return -1;
@@ -304,6 +313,7 @@ static int net_poll(union lkl_netdev nd, int events)
 	};
 	int ret = 0;
 
+	printk("net_poll\n");
 	if (events & LKL_DEV_NET_POLL_RX)
 		pfd.events |= POLLIN;
 	if (events & LKL_DEV_NET_POLL_TX)
