@@ -262,7 +262,7 @@ if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
 appendvar FRANKEN_CFLAGS "-I${LKLSRC}/tools/lkl/include"
 
 # tools are compiled against platform libc
-echo "=== building tools ==="
+echo "=== build tools ==="
 CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
         LDFLAGS="${EXTRA_LDFLAGS}" \
@@ -271,7 +271,7 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         STAGEDIR="${STAGEDIR}" \
         ${MAKE} ${OS} -C tools
 
-echo "=== building platform-musl ==="
+echo "=== build platform-musl ==="
 (
 
     [ -d ${BUILDDIR}/platform-musl ] || git clone  git://git.musl-libc.org/musl ${BUILDDIR}/platform-musl
@@ -286,7 +286,7 @@ echo "=== building platform-musl ==="
 export CC=${STAGEDIR}/platform-musl/bin/musl-gcc
 export HOSTCC=${CC}
 
-echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
+echo "=== build lkl ==="
 (
     [ -d ${LKLSRC} ] || git clone https://github.com/lkl/linux.git ${LKLSRC}
 
@@ -314,7 +314,7 @@ echo "=== Linux build LINUX_SRCDIR=${LKLSRC} ==="
     set +x
 )
 
-echo "=== building lkl-musl ==="
+echo "=== build lkl-musl ==="
 (
 
     [ -d ${BUILDDIR}/lkl-musl ] || git clone https://github.com/marklee77/musl.git ${BUILDDIR}/lkl-musl
@@ -336,12 +336,11 @@ ${INSTALL-install} -d ${OUTDIR}/include
 cp -a ${STAGEDIR}/lkl-linux/usr/include/* ${OUTDIR}/include
 cp -a ${STAGEDIR}/lkl-musl/include/* ${OUTDIR}/include
 
-## FIXME: MUSL_LIBC is somehow misleading as franken also uses.
-## LINUX_LIBC?
 appendvar FRANKEN_FLAGS "-DMUSL_LIBC"
 appendvar EXTRA_CPPFLAGS "-DCONFIG_LKL"
 appendvar EXTRA_CFLAGS "-DCONFIG_LKL"
 
+echo "=== build platform ==="
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
     AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
     ASFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
@@ -351,19 +350,7 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
     STAGEDIR="${STAGEDIR}" \
     ${MAKE} ${STDJ} ${OS} -C platform
 
-# should clean up how deterministic build is done
-if [ ${DETERMINSTIC-x} = "deterministic" ]
-then
-    CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
-    AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
-    ASFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
-    LDFLAGS="${EXTRA_LDFLAGS}" \
-    CPPFLAGS="${EXTRA_CPPFLAGS}" \
-    BUILDDIR="${BUILDDIR}" \
-    STAGEDIR="${STAGEDIR}" \
-    ${MAKE} deterministic -C platform
-fi 
-
+echo "=== build franken ==="
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
     AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
     ASFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
@@ -374,14 +361,16 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
     STAGEDIR="${STAGEDIR}" \
     ${MAKE} ${STDJ} -C franken
 
-# explode and implode
-rm -rf ${BUILDDIR}/explode
-mkdir -p ${BUILDDIR}/explode/libc
-mkdir -p ${BUILDDIR}/explode/lkl-musl
-mkdir -p ${BUILDDIR}/explode/kernel
-mkdir -p ${BUILDDIR}/explode/franken
-mkdir -p ${BUILDDIR}/explode/platform
+echo "=== create combined libc ==="
 (
+    # explode and implode
+    rm -rf ${BUILDDIR}/explode
+    mkdir -p ${BUILDDIR}/explode/libc
+    mkdir -p ${BUILDDIR}/explode/lkl-musl
+    mkdir -p ${BUILDDIR}/explode/kernel
+    mkdir -p ${BUILDDIR}/explode/franken
+    mkdir -p ${BUILDDIR}/explode/platform
+
     # explode kernel specific libc
     cd ${BUILDDIR}/explode/lkl-musl
     ${AR-ar} x ${STAGEDIR}/lkl-musl/lib/libc.a
@@ -412,7 +401,6 @@ mkdir -p ${BUILDDIR}/explode/platform
 
     cd ${BUILDDIR}/explode
     ${AR-ar} cr libc.a kernel/kernel.o lkl-musl/*.o franken/*.o platform/*.o
-
 )
 
 # install to OUTDIR
@@ -424,7 +412,6 @@ ${INSTALL-install} ${STAGEDIR}/lib/*.o ${OUTDIR}/lib
 ${INSTALL-install} ${BUILDDIR}/explode/libc.a ${OUTDIR}/lib
 
 # create toolchain wrappers
-# select these based on compiler defs
 UNDEF=""
 TOOL_PREFIX=franken
 COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"

@@ -20,7 +20,12 @@ typedef unsigned socklen_t;
 #include <lkl.h>
 #include <lkl/asm/syscalls.h>
 
-// FIXME: move ids to __fdtable
+static void print(const char *str)
+{
+        int ret __attribute__((unused));
+
+        ret = write(1, str, strlen(str));
+}
 
 struct __fdtable __franken_fd[MAXFD];
 
@@ -32,6 +37,7 @@ __franken_fdinit()
 
 	/* iterate over numbered descriptors, stopping when one does not exist */
 	for (fd = 0; fd < MAXFD; fd++) {
+
 		memset(&st, 0, sizeof(struct stat));
 		if (fstat(fd, &st) == -1) {
 			__franken_fd[fd].valid = 0;
@@ -40,7 +46,7 @@ __franken_fdinit()
 		__franken_fd[fd].valid = 1;
 		__franken_fd[fd].flags = fcntl(fd, F_GETFL, 0);
 		memcpy(&__franken_fd[fd].st, &st, sizeof(struct stat));
-		/* XXX move this to platform code */
+
 		switch (st.st_mode & S_IFMT) {
 		case S_IFREG:
 			__franken_fd[fd].seek = 1;
@@ -52,9 +58,6 @@ __franken_fdinit()
 			__franken_fd[fd].device_id = lkl_disk_add(disk);
 			break;
 		case S_IFCHR:
-			/* XXX Linux presents stdin as char device see notes to clean up */
-			__franken_fd[fd].seek = 0;
-			break;
 		case S_IFIFO:
 			__franken_fd[fd].seek = 0;
 			break;
@@ -71,8 +74,8 @@ __franken_fdinit()
 static void
 mount_tmpfs(void)
 {
-    lkl_sys_mkdir("/tmp", 0777);
-    lkl_sys_mount("tmpfs", "/tmp", "tmpfs", 0, "mode=0777");
+	lkl_sys_mkdir("/tmp", 0777);
+	lkl_sys_mount("tmpfs", "/tmp", "tmpfs", 0, "mode=0777");
 }
 
 static void
@@ -98,9 +101,16 @@ register_net(int fd)
 	addr = getenv("FIXED_ADDRESS");
 	mask = getenv("FIXED_MASK");
 	gw = getenv("FIXED_GATEWAY");
-	
+
 	// FIXME: check for error
 	if (addr && mask && gw) {
+		print("fixed address: ");
+		print(addr);
+		print("\nfixed mask: ");
+		print(mask);
+		print("\nfixed gateway; ");
+		print(gw);
+		print("\n");
 		lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask));
 		lkl_set_ipv4_gateway(inet_addr(gw));
 	} else {
@@ -110,7 +120,7 @@ register_net(int fd)
 }
 
 static int
-register_block(int dev, int fd, int flags, off_t size, int root)
+register_block(int fd, int flags, off_t size, int root)
 {
 	int ret;
 	char mnt_point[32];
@@ -136,34 +146,15 @@ __franken_fdinit_create()
 	int fd;
 	int n_block = 0;
 
-	/* FIXME: make FIRST block mount, do not hard code to 3rd */
-	if (__franken_fd[3].valid) {
-		fd = 3;
-		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
-		case S_IFREG:
-		case S_IFBLK:
-			if (register_block(n_block++, fd,
-			    __franken_fd[fd].flags & O_ACCMODE,
-			    __franken_fd[fd].st.st_size, 1) == 0) {
-				__franken_fd[fd].mounted = 1;
-			}
-			break;
-		case S_IFSOCK:
-			register_net(fd);
-			break;
-		}
-	}
-
-	for (fd = 4; fd < MAXFD; fd++) {
+	for (fd = 3; fd < MAXFD; fd++) {
 		if (__franken_fd[fd].valid == 0)
 			break;
 		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
 		case S_IFREG:
-			// FIXME: register regular file? when does this happen?
 			break;
 		case S_IFBLK:
-			register_block(n_block++, fd, __franken_fd[fd].flags & O_ACCMODE,
-                           __franken_fd[fd].st.st_size, 0);
+			register_block(fd, __franken_fd[fd].flags & O_ACCMODE,
+				       __franken_fd[fd].st.st_size, !n_block++);
 			break;
 		case S_IFSOCK:
 			register_net(fd);

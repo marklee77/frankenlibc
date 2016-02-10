@@ -65,7 +65,8 @@ static char *get_from_environ(const char *name) {
 }
 
 int
-__franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, char **envp)
+__franken_start_main(int(*main)(int, char **, char **),
+		     int argc, char **argv, char **envp)
 {
 	void (*print)(const char *, int);
 	char *val;

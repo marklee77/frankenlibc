@@ -14,7 +14,7 @@ clean:
 	make clean -C build/lkl-linux
 	make clean -C build/lkl-linux/tools/lkl
 
-mrproper:
+veryclean:
 	rm -rf build
 
 distclean: 
