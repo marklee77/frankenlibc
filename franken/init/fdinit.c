@@ -20,13 +20,6 @@ typedef unsigned socklen_t;
 #include <lkl.h>
 #include <lkl/asm/syscalls.h>
 
-static void print(const char *str)
-{
-        int ret __attribute__((unused));
-
-        ret = write(1, str, strlen(str));
-}
-
 struct __fdtable __franken_fd[MAXFD];
 
 void
@@ -93,10 +86,8 @@ register_net(int fd)
 	char *addr, *mask, *gw;
 
 	ifindex = lkl_netdev_get_ifindex(__franken_fd[fd].device_id);
-	if ((err = lkl_if_up(ifindex))) {
-		//printf("could not bring up network device %d: %d\n", __franken_fd[fd].device_id, err);
+	if ((err = lkl_if_up(ifindex)))
 		;
-	}
 
 	addr = getenv("FIXED_ADDRESS");
 	mask = getenv("FIXED_MASK");
@@ -104,19 +95,10 @@ register_net(int fd)
 
 	// FIXME: check for error
 	if (addr && mask && gw) {
-		print("fixed address: ");
-		print(addr);
-		print("\nfixed mask: ");
-		print(mask);
-		print("\nfixed gateway; ");
-		print(gw);
-		print("\n");
-		if ((err = lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask)))) {
-			print("failed to set ipv4\n");
-		}
-		if ((err = lkl_set_ipv4_gateway(inet_addr(gw)))) {
-			print("failed to set gateway\n");
-		}
+		if ((err = lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask)))) 
+			;
+		if ((err = lkl_set_ipv4_gateway(inet_addr(gw)))) 
+			;
 	} else {
 		lkl_if_set_ipv4(ifindex, inet_addr("10.1.0.2"), 24);
 	}
@@ -131,7 +113,6 @@ register_block(int fd, int flags, off_t size, int root)
 	ret = lkl_mount_dev(__franken_fd[fd].device_id, "ext4", 0, NULL, 
 			    mnt_point, sizeof(mnt_point));
 	if (ret < 0) {
-		//printf("can't mount disk (%d) at %s. err=%d\n", __franken_fd[fd].device_id, mnt_point, ret);
 		;
 	} else if (root) {
 		lkl_sys_chroot(mnt_point);

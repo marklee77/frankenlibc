@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <string.h>
 #include <lkl_host.h>
 #include "virtio.h"
@@ -10,13 +7,6 @@
 #include "thread.h"
 
 #define BIT(x) (1ULL << x)
-
-static void printk(const char *str)
-{
-        int ret __attribute__((unused));
-
-        ret = write(1, str, strlen(str));
-}
 
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;

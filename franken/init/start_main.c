@@ -64,13 +64,6 @@ static char *get_from_environ(const char *name) {
 	return NULL;
 }
 
-static void printk(const char *str)
-{
-        int ret __attribute__((unused));
-
-        ret = write(1, str, strlen(str));
-}
-
 int
 __franken_start_main(int(*main)(int, char **, char **),
 		     int argc, char **argv, char **envp)
@@ -121,9 +114,6 @@ __franken_start_main(int(*main)(int, char **, char **),
 
 	/* make sure stdout is working even when VERBOSE is off */
 	lkl_host_ops.print = print;
-
-	if ((val = get_from_environ("FRANKEN_VERBOSE")) && atoi(val))
-		printk("hello world...\n");
 
 	exit(main(argc, argv, envp));
 	return 0;
