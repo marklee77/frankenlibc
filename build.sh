@@ -278,8 +278,8 @@ echo "=== build platform-musl ==="
 
     set -x
     cd ${BUILDDIR}/platform-musl
-    [ -f config.mak ] || ./configure --disable-shared --enable-debug \
-        --disable-optimize --prefix=${STAGEDIR}/platform-musl
+    [ -f config.mak ] || ./configure --prefix=${STAGEDIR}/platform-musl \
+        --enable-wrapper=all --disable-shared --enable-debug --disable-optimize 
     make install
 )
 

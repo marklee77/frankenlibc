@@ -22,8 +22,7 @@ RUN cd /usr/src && \
     cd frankenlibc && \
     git checkout origin/lkl-musl && \
     ./build.sh -d /usr/local && \
-    cp build/tests/hello /usr/local/bin/franken.hello
-#    cd .. && \
-#    rm -rf frankenlibc
+    cp build/tests/hello /usr/local/bin/franken.hello && \
+    make clean
 
 CMD ["/usr/local/bin/rexec", "/usr/local/bin/franken.hello"]
