@@ -84,27 +84,24 @@ unmount_atexit(void)
 static void
 register_net(int fd)
 {
-	int ifindex, err;
+	int ifindex;
 	char *addr, *mask, *gw;
 
 	ifindex = lkl_netdev_get_ifindex(__franken_fd[fd].device_id);
-	if ((err = lkl_if_up(ifindex)))
-		;
-
 	addr = getenv("FIXED_ADDRESS");
 	mask = getenv("FIXED_MASK");
 	gw = getenv("FIXED_GATEWAY");
 
-	// FIXME: check for error
 	if (addr && mask && gw) {
-		if ((err = lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask))))
-			;
-		if ((err = lkl_set_ipv4_gateway(inet_addr(gw))))
-			;
+		lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask));
+		lkl_set_ipv4_gateway(inet_addr(gw));
 	} else {
 		lkl_if_set_ipv4(ifindex, inet_addr("10.1.0.2"), 24);
 		lkl_set_ipv4_gateway(inet_addr("10.1.0.1"));
 	}
+
+	lkl_if_set_mtu(ifindex, 1420);
+	lkl_if_up(ifindex);
 }
 
 static int
@@ -150,5 +147,7 @@ __franken_fdinit_create()
 	}
 
 	/* FIXME: put all generic setup here? */
+	lkl_sys_mknod("/dev/null", 0644, LKL_MKDEV(1, 3));
+	lkl_if_up(1);
 	mount_tmpfs();
 }
