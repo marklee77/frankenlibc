@@ -74,8 +74,10 @@ mount_tmpfs(void)
 static void
 unmount_atexit(void)
 {
+	/* FIXME: this doesn't do anything useful...
 	int ret __attribute__((__unused__));
 	ret = lkl_sys_umount("/etc", 0);
+	*/
 }
 
 // FIXME: change env vars to FIXED_%FD_ADDR to support multiple devices
@@ -95,9 +97,9 @@ register_net(int fd)
 
 	// FIXME: check for error
 	if (addr && mask && gw) {
-		if ((err = lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask)))) 
+		if ((err = lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask))))
 			;
-		if ((err = lkl_set_ipv4_gateway(inet_addr(gw)))) 
+		if ((err = lkl_set_ipv4_gateway(inet_addr(gw))))
 			;
 	} else {
 		lkl_if_set_ipv4(ifindex, inet_addr("10.1.0.2"), 24);
