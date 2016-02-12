@@ -103,6 +103,7 @@ register_net(int fd)
 			;
 	} else {
 		lkl_if_set_ipv4(ifindex, inet_addr("10.1.0.2"), 24);
+		lkl_set_ipv4_gateway(inet_addr("10.1.0.1"));
 	}
 }
 

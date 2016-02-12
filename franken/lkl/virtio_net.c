@@ -63,10 +63,11 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 	} else {
 		h->num_buffers = 1;
 
-		/* XXX: need to use this semantics for franken_poll(2) */
-		__franken_fd[net_dev->nd.fd].wake = net_dev->rx_poll.rcvthr;
 		ret = net_dev->ops->rx(net_dev->nd, buf, &len);
 		if (ret < 0) {
+			// FIXME: sem_down/sem_up not working, broken threads
+			// implementation?
+			__franken_fd[net_dev->nd.fd].wake = net_dev->rx_poll.rcvthr;
 			return -1;
 		}
 	}
@@ -90,7 +91,7 @@ static void poll_thread(void *arg)
 			virtio_process_queue(&np->dev->dev, 0);
 		if (ret & LKL_DEV_NET_POLL_TX)
 			virtio_process_queue(&np->dev->dev, 1);
-		clock_sleep(CLOCK_REALTIME, 10, 0);
+		clock_sleep(CLOCK_REALTIME, 1000, 0);
 	}
 }
 
