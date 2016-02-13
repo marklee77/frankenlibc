@@ -8,16 +8,10 @@
 
 #define BIT(x) (1ULL << x)
 
-void printk(char *msg) {
-	int ret __attribute__((unused));
-	ret = write(1, msg, strlen(msg));
-}
-
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;
 	void *sem;
 	int event;
-	struct thread *rcvthr;
 };
 
 struct virtio_net_dev {
@@ -62,12 +56,9 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 		}
 	} else {
 		h->num_buffers = 1;
-
 		ret = net_dev->ops->rx(net_dev->nd, buf, &len);
 		if (ret < 0) {
-			// FIXME: sem_down/sem_up not working, broken threads
-			// implementation?
-			__franken_fd[net_dev->nd.fd].wake = net_dev->rx_poll.rcvthr;
+			lkl_host_ops.sem_up(net_dev->rx_poll.sem);
 			return -1;
 		}
 	}
@@ -91,7 +82,8 @@ static void poll_thread(void *arg)
 			virtio_process_queue(&np->dev->dev, 0);
 		if (ret & LKL_DEV_NET_POLL_TX)
 			virtio_process_queue(&np->dev->dev, 1);
-		clock_sleep(CLOCK_REALTIME, 1000, 0);
+		clock_sleep(CLOCK_MONOTONIC, -1, 0);
+		lkl_host_ops.sem_down(np->sem);
 	}
 }
 
@@ -118,7 +110,7 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	dev->nd = nd;
 
 	if (mac)
-		memcpy(dev->config.mac, mac, 6);
+		memcpy(dev->config.mac, mac, LKL_ETH_ALEN);
 
 	dev->rx_poll.event = LKL_DEV_NET_POLL_RX;
 	dev->rx_poll.sem = lkl_host_ops.sem_alloc(0);
@@ -135,18 +127,13 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	if (ret)
 		goto out_free;
 
-	if ((dev->rx_poll.rcvthr = create_thread("virtio-net-rx", NULL,
-						  poll_thread,
-						  &dev->rx_poll, NULL, 0, 0))
-	    == NULL)
+	if (!(__franken_fd[nd.fd].wake =
+	      create_thread("virtio-net-rx", NULL, poll_thread, &dev->rx_poll,
+                            NULL, 0, 0)))
 		goto out_cleanup_dev;
 
-	/*
-	if (create_thread("virtio-net-tx", NULL,
-			  poll_thread, &dev->tx_poll,
-			  NULL, 0, 1) == NULL)
+	if (lkl_host_ops.thread_create(poll_thread, &dev->tx_poll) < 0)
 		goto out_cleanup_dev;
-	*/
 
 	/* RX/TX thread polls will exit when the host netdev handle is closed */
 
