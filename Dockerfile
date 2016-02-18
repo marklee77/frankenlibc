@@ -15,7 +15,7 @@ RUN apt-get update && \
 RUN useradd -m -s /bin/bash unikernel
 
 ENV SUDO_UID=1000
-ENV FRANKEN_VERBOSE=1
+ENV UNIKERNEL_VERBOSE=1
 
 RUN cd /usr/src && \
     git clone https://github.com/marklee77/frankenlibc.git && \
