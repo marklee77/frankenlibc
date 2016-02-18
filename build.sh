@@ -415,7 +415,7 @@ ${INSTALL-install} ${BUILDDIR}/explode/libc.a ${OUTDIR}/lib
 
 # create toolchain wrappers
 UNDEF=""
-TOOL_PREFIX=franken
+TOOL_PREFIX=unikernel
 COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"
 COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
 [ -f ${OUTDIR}/lib/crt0.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt0.o"
