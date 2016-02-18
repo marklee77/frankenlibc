@@ -175,6 +175,8 @@ while getopts '?b:d:F:Hhj:k:L:M:m:o:p:qrs:V:' opt; do
         ;;
     "M")
         size=$(bytes ${OPTARG})
+        # FIXME: this doesn't actually do anything at the moment...
+        # franken/init/start_main.c if you need it
         appendvar FRANKEN_FLAGS "-DLKL_MEM_SIZE=${size}"
         ;;
     "o")
