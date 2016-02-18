@@ -18,11 +18,10 @@ ENV SUDO_UID=1000
 ENV UNIKERNEL_VERBOSE=1
 
 RUN cd /usr/src && \
-    git clone https://github.com/marklee77/frankenlibc.git && \
-    cd frankenlibc && \
-    git checkout origin/lkl-musl && \
+    git clone https://github.com/sereca/unikernel-app-builder.git && \
+    cd unikernel-app-builder && \
     ./build.sh -d /usr/local && \
-    cp build/tests/hello /usr/local/bin/franken.hello && \
+    cp build/tests/hello /usr/local/bin/unikernel-hello && \
     make clean
 
-CMD ["/usr/local/bin/rexec", "/usr/local/bin/franken.hello"]
+CMD ["/usr/local/bin/rexec", "/usr/local/bin/unikernel-hello"]
