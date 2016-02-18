@@ -9,7 +9,5 @@ main(int argc, char **argv)
 {
 
 	assert(environ != NULL);
-	assert(strcmp(getenv("FRANKEN"), "RUMP") == 0);
-
 	return 0;
 }

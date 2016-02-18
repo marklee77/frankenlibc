@@ -92,7 +92,7 @@ __franken_start_main(int(*main)(int, char **, char **),
 
 	print = lkl_host_ops.print;
         lkl_host_ops.print = NULL;
-	if ((val = get_from_environ("FRANKEN_VERBOSE")) && atoi(val))
+	if ((val = get_from_environ("UNIKERNEL_VERBOSE")) && atoi(val))
 		lkl_host_ops.print = print;
 
 	lkl_start_kernel(&lkl_host_ops, LKL_MEM_SIZE, boot_cmdline);

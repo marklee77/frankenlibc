@@ -35,7 +35,6 @@ $(OUTDIR)/mmap:		mmap.c $(DEPS)
 test:			$(FILES)
 			@mkdir -p $(OUTDIR)
 			$(OUTDIR)/args franken stage
-			FRANKEN=STAGE $(OUTDIR)/env
 			$(OUTDIR)/_exit
 			$(OUTDIR)/mmap
 
