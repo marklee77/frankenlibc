@@ -49,6 +49,8 @@ finifn()
 #define LKL_MEM_SIZE 100 * 1024 * 1024
 static char *boot_cmdline = "";
 
+int __unikernel_log_real_syscalls = 0;
+
 // this is needed because getenv does not work until after __init_libc
 static char *get_from_environ(const char *name) {
 	int i;
@@ -81,6 +83,9 @@ __franken_start_main(int(*main)(int, char **, char **),
 				__progname = c + 1;
 		}
 	}
+
+	if ((val = get_from_environ("UNIKERNEL_LOG_REAL_SYSCALLS")))
+		__unikernel_log_real_syscalls = atoi(val);
 
 	__franken_fdinit();
 
